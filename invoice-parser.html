@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Swastik Enterprises — Invoice Parser</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg:#f5f2ec;--surface:#fff;--surface2:#f0ece3;--border:#d8d0c0;
+  --ink:#1a1410;--ink2:#5a5040;--ink3:#9a8f7a;
+  --red:#c0392b;--green:#27ae60;--amber:#d35400;--blue:#2980b9;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--ink);font-family:'Syne',sans-serif;min-height:100vh;}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  opacity:.5;
+}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px;position:relative;z-index:1;}
+
+/* HEADER */
+header{padding:36px 0 28px;border-bottom:2px solid var(--ink);margin-bottom:36px;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand-mark{width:46px;height:46px;background:var(--red);display:flex;align-items:center;
+  justify-content:center;font-size:19px;font-weight:800;color:#fff;flex-shrink:0;
+  clip-path:polygon(0 0,100% 0,100% 78%,78% 100%,0 100%);}
+.brand h1{font-size:21px;font-weight:800;letter-spacing:-.5px;line-height:1;}
+.brand p{font-size:11px;color:var(--ink3);font-family:'JetBrains Mono',monospace;margin-top:3px;}
+.badge{background:var(--red);color:#fff;font-size:10px;font-family:'JetBrains Mono',monospace;
+  padding:4px 10px;border-radius:2px;letter-spacing:1px;white-space:nowrap;align-self:flex-start;margin-top:4px;}
+
+/* UPLOAD */
+.upload-area{border:2px dashed var(--border);border-radius:4px;padding:44px 28px;
+  text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);
+  position:relative;margin-bottom:20px;}
+.upload-area.drag{border-color:var(--red);background:#fff8f7;}
+.upload-area:hover{border-color:var(--ink2);}
+.upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-icon{font-size:44px;margin-bottom:10px;display:block;line-height:1;}
+.upload-area h2{font-size:17px;font-weight:700;margin-bottom:5px;}
+.upload-area p{font-size:12px;color:var(--ink3);font-family:'JetBrains Mono',monospace;}
+
+/* FILE LIST */
+.file-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.file-item{display:flex;align-items:center;gap:10px;background:var(--surface);
+  border:1px solid var(--border);border-radius:3px;padding:9px 12px;animation:si .2s ease;}
+@keyframes si{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.fi-icon{font-size:17px;flex-shrink:0;}
+.fi-name{flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fi-pages{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink3);}
+.fi-status{font-size:10px;font-family:'JetBrains Mono',monospace;}
+.fi-status.ok{color:var(--green);} .fi-status.err{color:var(--red);} .fi-status.parsing{color:var(--amber);}
+.fi-remove{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:15px;padding:2px 4px;transition:color .15s;}
+.fi-remove:hover{color:var(--red);}
+
+/* ACTIONS */
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:36px;}
+.btn{display:flex;align-items:center;gap:7px;padding:11px 22px;border-radius:2px;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
+  cursor:pointer;transition:all .15s;border:2px solid transparent;white-space:nowrap;}
+.btn-primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+.btn-primary:hover{background:var(--red);border-color:var(--red);}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary:disabled:hover{background:var(--ink);border-color:var(--ink);}
+.btn-outline{background:transparent;color:var(--ink);border-color:var(--border);}
+.btn-outline:hover{border-color:var(--ink);}
+
+/* PROGRESS */
+#progress-section{display:none;margin-bottom:28px;}
+.pb-wrap{background:var(--border);border-radius:2px;height:3px;margin-bottom:6px;}
+.pb{height:3px;background:var(--red);border-radius:2px;transition:width .3s;}
+.pb-label{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink3);}
+
+/* SUMMARY */
+#summary-section{display:none;}
+.sum-header{display:flex;align-items:flex-end;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;margin-bottom:24px;padding-bottom:14px;border-bottom:2px solid var(--ink);}
+.sum-header h2{font-size:22px;font-weight:800;letter-spacing:-.5px;}
+.sum-header p{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink3);margin-top:2px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:14px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.stat.s1::after{background:var(--red);} .stat.s2::after{background:var(--green);}
+.stat.s3::after{background:var(--amber);} .stat.s4::after{background:var(--blue);}
+.stat-l{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--ink3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:5px;}
+.stat-v{font-size:22px;font-weight:800;letter-spacing:-1px;line-height:1;}
+.stat-sub{font-size:9px;color:var(--ink3);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+
+/* TABLES */
+.tbl-section{margin-bottom:28px;}
+.tbl-heading{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:3px 3px 0 0;}
+.tbl-heading.c5{background:var(--green);} .tbl-heading.c10{background:var(--amber);} .tbl-heading.cx{background:var(--blue);}
+.tbl-heading h3{font-size:13px;font-weight:700;color:#fff;}
+.tbl-heading .tmeta{font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.85);margin-left:auto;}
+.tbl-wrap{border:1px solid var(--border);border-top:none;border-radius:0 0 3px 3px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead th{background:var(--surface2);padding:8px 11px;font-size:9px;
+  font-family:'JetBrains Mono',monospace;font-weight:500;text-transform:uppercase;
+  letter-spacing:1px;color:var(--ink3);border-bottom:1px solid var(--border);text-align:right;}
+thead th:nth-child(1){text-align:center;} thead th:nth-child(2){text-align:left;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:8px 11px;font-size:12.5px;text-align:right;vertical-align:middle;}
+tbody td:nth-child(1){text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink3);}
+tbody td:nth-child(2){text-align:left;font-weight:600;}
+.mrp-pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;
+  padding:1px 6px;border-radius:2px;font-weight:500;}
+.p5{background:#e8f8ee;color:var(--green);border:1px solid #b8e8c8;}
+.p10{background:#fff3e0;color:var(--amber);border:1px solid #ffd09a;}
+.px{background:#e8f4fb;color:var(--blue);border:1px solid #aed6f1;}
+.qc{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink2);}
+.ac{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;}
+.ic{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink3);}
+.sub-row td{background:var(--surface2)!important;font-family:'JetBrains Mono',monospace;
+  font-size:11px;font-weight:600;border-top:2px solid var(--border)!important;}
+.sub-row:hover{background:var(--surface2)!important;}
+.grand-row td{background:var(--ink)!important;color:#fff!important;
+  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
+.grand-row:hover td{background:var(--ink)!important;}
+
+/* LOG */
+#log-section{display:none;margin-top:20px;}
+.log-box{background:var(--ink);color:#9ecf90;font-family:'JetBrains Mono',monospace;
+  font-size:10px;border-radius:3px;padding:13px;max-height:140px;overflow-y:auto;line-height:1.75;}
+.le{color:#ff8888;} .lw{color:#ffc070;}
+
+@media(max-width:600px){
+  .stats-row{grid-template-columns:repeat(2,1fr);}
+  header{flex-direction:column;align-items:flex-start;}
+  thead th:nth-child(6),tbody td:nth-child(6){display:none;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <div>
+      <h1>Invoice Parser</h1>
+      <p>Swastik Enterprises &mdash; Items Summary Generator</p>
+    </div>
+  </div>
+  <div class="badge">GITHUB PAGES READY</div>
+</header>
+
+<div class="upload-area" id="dropZone">
+  <input type="file" id="fileInput" accept=".pdf" multiple/>
+  <span class="upload-icon">📄</span>
+  <h2>Drop Invoice PDFs here</h2>
+  <p>Single or multiple PDFs &nbsp;·&nbsp; Multi-page supported &nbsp;·&nbsp; Swastik Enterprises format</p>
+</div>
+
+<div class="file-list" id="fileList"></div>
+
+<div class="actions">
+  <button class="btn btn-primary" id="parseBtn" disabled onclick="parseAll()">&#9889; Parse &amp; Generate Summary</button>
+  <button class="btn btn-outline" id="clearBtn" onclick="clearAll()" style="display:none">&#128465; Clear All</button>
+</div>
+
+<div id="progress-section">
+  <div class="pb-wrap"><div class="pb" id="pb" style="width:0%"></div></div>
+  <div class="pb-label" id="pblabel">Initializing...</div>
+</div>
+
+<div id="summary-section">
+  <div class="sum-header">
+    <div>
+      <h2>Items Summary</h2>
+      <p id="sum-meta"></p>
+    </div>
+    <button class="btn btn-primary" onclick="generatePDF()">&#11015; Download PDF</button>
+  </div>
+  <div class="stats-row" id="statsRow"></div>
+  <div id="tablesContainer"></div>
+</div>
+
+<div id="log-section"><div class="log-box" id="logBox"></div></div>
+
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let uploadedFiles = [];
+let parsedItems   = [];
+
+// Drag & Drop
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  handleFiles([...e.dataTransfer.files].filter(f => f.type === 'application/pdf'));
+});
+fileInput.addEventListener('change', () => { handleFiles([...fileInput.files]); fileInput.value = ''; });
+
+function handleFiles(files) {
+  files.forEach(f => {
+    if (!uploadedFiles.find(x => x.name === f.name && x.file.size === f.size))
+      uploadedFiles.push({ file: f, name: f.name, pages: '?' });
+  });
+  renderFileList();
+  document.getElementById('parseBtn').disabled = uploadedFiles.length === 0;
+  document.getElementById('clearBtn').style.display = uploadedFiles.length ? '' : 'none';
+}
+
+function renderFileList() {
+  document.getElementById('fileList').innerHTML = uploadedFiles.map((f, i) => `
+    <div class="file-item">
+      <span class="fi-icon">&#128209;</span>
+      <span class="fi-name">${f.name}</span>
+      <span class="fi-pages" id="fip-${i}">${f.pages !== '?' ? f.pages + ' pages' : ''}</span>
+      <span class="fi-status" id="fis-${i}"></span>
+      <button class="fi-remove" onclick="removeFile(${i})">&#x2715;</button>
+    </div>`).join('');
+}
+
+function removeFile(i) {
+  uploadedFiles.splice(i, 1);
+  renderFileList();
+  document.getElementById('parseBtn').disabled = uploadedFiles.length === 0;
+  document.getElementById('clearBtn').style.display = uploadedFiles.length ? '' : 'none';
+}
+
+function clearAll() {
+  uploadedFiles = []; parsedItems = [];
+  renderFileList();
+  document.getElementById('parseBtn').disabled = true;
+  document.getElementById('clearBtn').style.display = 'none';
+  document.getElementById('summary-section').style.display = 'none';
+  document.getElementById('log-section').style.display = 'none';
+  document.getElementById('progress-section').style.display = 'none';
+}
+
+function log(msg, t) {
+  const box = document.getElementById('logBox');
+  document.getElementById('log-section').style.display = '';
+  const d = document.createElement('div');
+  d.className = t === 'err' ? 'le' : t === 'warn' ? 'lw' : '';
+  d.textContent = msg;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setProg(pct, label) {
+  document.getElementById('progress-section').style.display = '';
+  document.getElementById('pb').style.width = pct + '%';
+  document.getElementById('pblabel').textContent = label;
+}
+
+function setFS(i, cls, txt) {
+  const e = document.getElementById(`fis-${i}`);
+  if (e) { e.className = 'fi-status ' + cls; e.textContent = txt; }
+}
+
+// ── PARSE ALL FILES ───────────────────────────────────────────────────────────
+async function parseAll() {
+  parsedItems = [];
+  document.getElementById('summary-section').style.display = 'none';
+  document.getElementById('log-section').style.display = 'none';
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('parseBtn').disabled = true;
+
+  const summary = {};
+  let invoiceCount = 0;
+
+  for (let fi = 0; fi < uploadedFiles.length; fi++) {
+    const uf = uploadedFiles[fi];
+    setProg(Math.round((fi / uploadedFiles.length) * 85), 'Reading: ' + uf.name);
+    setFS(fi, 'parsing', '⏳ parsing…');
+    log('── ' + uf.name);
+
+    try {
+      const buf    = await uf.file.arrayBuffer();
+      const pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+      const np     = pdfDoc.numPages;
+      uploadedFiles[fi].pages = np;
+      const pg = document.getElementById(`fip-${fi}`);
+      if (pg) pg.textContent = np + ' pages';
+      log('   ' + np + ' page(s)');
+
+      for (let p = 1; p <= np; p++) {
+        const page    = await pdfDoc.getPage(p);
+        const content = await page.getTextContent();
+        const lines   = buildLines(content.items);
+        const result  = extractInvoice(lines);
+
+        if (!result) {
+          log('   Page ' + p + ': no invoice data', 'warn');
+          continue;
+        }
+        invoiceCount++;
+        log('   Page ' + p + ': ' + result.invoiceNo + ' → ' + result.items.length + ' items');
+
+        result.items.forEach(item => {
+          const key = item.name + '||' + item.mrp;
+          if (!summary[key]) summary[key] = { name: item.name, mrp: item.mrp, totalQty: 0, totalAmt: 0, invoices: new Set() };
+          summary[key].totalQty += item.qty;
+          summary[key].totalAmt += item.amt;
+          summary[key].invoices.add(result.invoiceNo);
+        });
+      }
+      setFS(fi, 'ok', '✓ done');
+    } catch(e) {
+      log('   ERROR: ' + e.message, 'err');
+      setFS(fi, 'err', '✕ error');
+    }
+  }
+
+  setProg(100, 'Done!');
+  parsedItems = Object.values(summary).sort((a, b) => a.mrp - b.mrp || a.name.localeCompare(b.name));
+  log('\n✅ ' + invoiceCount + ' invoices · ' + parsedItems.length + ' unique SKUs');
+  document.getElementById('parseBtn').disabled = false;
+
+  if (!parsedItems.length) {
+    log('⚠ No items extracted. Ensure the PDFs are Swastik Enterprises invoice format.', 'warn');
+    return;
+  }
+  renderSummary(invoiceCount);
+}
+
+// ── TEXT RECONSTRUCTION ───────────────────────────────────────────────────────
+function buildLines(items) {
+  const byY = {};
+  items.forEach(item => {
+    const y = Math.round(item.transform[5]);
+    if (!byY[y]) byY[y] = [];
+    byY[y].push(item.str);
+  });
+  return Object.keys(byY)
+    .sort((a, b) => Number(b) - Number(a))
+    .map(y => byY[y].join(' ').replace(/\s+/g, ' ').trim())
+    .filter(l => l.length > 0);
+}
+
+// ── EXTRACT INVOICE DATA ──────────────────────────────────────────────────────
+function extractInvoice(lines) {
+  // Find invoice number
+  let invoiceNo = 'UNKNOWN';
+  for (const l of lines) {
+    const m = l.match(/SWE\/(\d+)/i);
+    if (m) { invoiceNo = 'SWE/' + m[1]; break; }
+  }
+
+  const items = [];
+  const seen  = new Set();
+  const fullText = lines.join('\n');
+
+  // Primary regex: matches full item row in Swastik format
+  // Groups: (sno) (name) (hsn) (qty) (mrp) (discount%) (rate) (amount)
+  const re = /(\d+)\s+([A-Za-z][A-Za-z0-9 \-&']+?)\s+(2106909[09]|1806909[09])\s+(\d+)\s*PCS?\s+([\d]+(?:\.[\d]+)?)\s*\([\d.]+%\s*OFF\)\s+[\d.]+\s+([\d.]+)/gi;
+
+  let m;
+  while ((m = re.exec(fullText)) !== null) {
+    const name = m[2].trim().replace(/\s+/g, ' ');
+    const qty  = parseInt(m[4]);
+    const mrp  = parseFloat(m[5]);
+    const amt  = parseFloat(m[6]);
+    if (name.length < 2 || qty <= 0 || amt <= 0) continue;
+    const dkey = `${name}|${mrp}|${qty}|${amt}`;
+    if (seen.has(dkey)) continue;
+    seen.add(dkey);
+    items.push({ name, mrp, qty, amt });
+  }
+
+  // Fallback: line-by-line if primary regex found nothing
+  if (!items.length) {
+    const hsnRe = /21069099|18069090/;
+    for (const line of lines) {
+      if (!hsnRe.test(line)) continue;
+      // Try pattern: ...name HSN qty PCS mrp (x% OFF) rate amount
+      const lm = line.match(/(.+?)\s+(?:21069099|18069090)\s+(\d+)\s*PCS?\s+([\d.]+)\s*\([\d.]+%\s*OFF\)\s+[\d.]+\s+([\d.]+)/i);
+      if (lm) {
+        const name = lm[1].replace(/^\d+\s*/, '').trim();
+        const qty  = parseInt(lm[2]);
+        const mrp  = parseFloat(lm[3]);
+        const amt  = parseFloat(lm[4]);
+        if (name.length >= 2 && qty > 0 && amt > 0) {
+          const dkey = `${name}|${mrp}|${qty}|${amt}`;
+          if (!seen.has(dkey)) { seen.add(dkey); items.push({ name, mrp, qty, amt }); }
+        }
+      }
+    }
+  }
+
+  if (!items.length) return null;
+  return { invoiceNo, items };
+}
+
+// ── RENDER SUMMARY ────────────────────────────────────────────────────────────
+function renderSummary(invoiceCount) {
+  document.getElementById('summary-section').style.display = '';
+
+  const totalQty = parsedItems.reduce((s, i) => s + i.totalQty, 0);
+  const totalAmt = parsedItems.reduce((s, i) => s + i.totalAmt, 0);
+  const mrp5     = parsedItems.filter(i => i.mrp === 5);
+  const mrp10    = parsedItems.filter(i => i.mrp === 10);
+  const other    = parsedItems.filter(i => i.mrp !== 5 && i.mrp !== 10);
+  const now      = new Date();
+
+  document.getElementById('sum-meta').textContent =
+    `${invoiceCount} invoices · ${parsedItems.length} unique SKUs · ${now.toLocaleDateString('en-IN')}`;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat s1"><div class="stat-l">Invoices Parsed</div><div class="stat-v">${invoiceCount}</div><div class="stat-sub">${uploadedFiles.length} file(s)</div></div>
+    <div class="stat s2"><div class="stat-l">Unique SKUs</div><div class="stat-v">${parsedItems.length}</div><div class="stat-sub">${mrp5.length} @ Rs5 · ${mrp10.length} @ Rs10</div></div>
+    <div class="stat s3"><div class="stat-l">Total Qty</div><div class="stat-v">${totalQty.toLocaleString('en-IN')}</div><div class="stat-sub">PCS combined</div></div>
+    <div class="stat s4"><div class="stat-l">Total Revenue</div><div class="stat-v">&#8377;${Math.round(totalAmt).toLocaleString('en-IN')}</div><div class="stat-sub">taxable value</div></div>
+  `;
+
+  const groups = [];
+  if (mrp5.length)  groups.push({ items: mrp5,  cls:'c5',  label:'MRP ₹5 Items',   rate:'4.05',  disc:'19.05%' });
+  if (mrp10.length) groups.push({ items: mrp10, cls:'c10', label:'MRP ₹10 Items',  rate:'8.10',  disc:'19.05%' });
+  if (other.length) groups.push({ items: other, cls:'cx',  label:'Other MRP Items', rate:'—',     disc:'—' });
+
+  let html = '';
+  let sno  = 0;
+
+  groups.forEach(g => {
+    const subQty = g.items.reduce((s, i) => s + i.totalQty, 0);
+    const subAmt = g.items.reduce((s, i) => s + i.totalAmt, 0);
+    const rows   = g.items.map(item => {
+      sno++;
+      const pc = item.mrp === 5 ? 'p5' : item.mrp === 10 ? 'p10' : 'px';
+      return `<tr>
+        <td>${sno}</td>
+        <td>${item.name}</td>
+        <td><span class="mrp-pill ${pc}">&#8377;${item.mrp}</span></td>
+        <td class="qc">${item.totalQty} PCS</td>
+        <td class="ac">&#8377;${item.totalAmt.toFixed(2)}</td>
+        <td class="ic">${item.invoices.size}</td>
+      </tr>`;
+    }).join('');
+
+    html += `
+      <div class="tbl-section">
+        <div class="tbl-heading ${g.cls}">
+          <h3>${g.label}</h3>
+          <span class="tmeta">Rate: ₹${g.rate} &nbsp;|&nbsp; Discount: ${g.disc} &nbsp;|&nbsp; ${g.items.length} items</span>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>#</th><th style="text-align:left">Item Name</th><th>MRP</th><th>Total Qty</th><th>Total Amount</th><th>Invoices</th></tr></thead>
+          <tbody>
+            ${rows}
+            <tr class="sub-row">
+              <td colspan="3" style="text-align:left">SUBTOTAL</td>
+              <td>${subQty} PCS</td><td>&#8377;${subAmt.toFixed(2)}</td><td></td>
+            </tr>
+          </tbody>
+        </table></div>
+      </div>`;
+  });
+
+  html += `
+    <div class="tbl-wrap" style="margin-top:10px;border-radius:3px;overflow:hidden;">
+      <table><tbody>
+        <tr class="grand-row">
+          <td colspan="3" style="text-align:left;padding-left:12px;font-size:14px;">GRAND TOTAL</td>
+          <td style="font-size:14px">${totalQty} PCS</td>
+          <td style="font-size:14px">&#8377;${totalAmt.toFixed(2)}</td>
+          <td></td>
+        </tr>
+      </tbody></table>
+    </div>`;
+
+  document.getElementById('tablesContainer').innerHTML = html;
+  document.getElementById('summary-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── GENERATE PDF ──────────────────────────────────────────────────────────────
+function generatePDF() {
+  if (!parsedItems.length) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const M = 14;
+  let y = 0;
+
+  const totalQty = parsedItems.reduce((s, i) => s + i.totalQty, 0);
+  const totalAmt = parsedItems.reduce((s, i) => s + i.totalAmt, 0);
+  const mrp5     = parsedItems.filter(i => i.mrp === 5);
+  const mrp10    = parsedItems.filter(i => i.mrp === 10);
+  const other    = parsedItems.filter(i => i.mrp !== 5 && i.mrp !== 10);
+
+  // Red top bar
+  doc.setFillColor(192, 57, 43);
+  doc.rect(0, 0, W, 2, 'F');
+  y = 13;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(17);
+  doc.setTextColor(26, 20, 16);
+  doc.text('SWASTIK ENTERPRISES', M, y);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 90, 70);
+  y += 6;
+  doc.text('Items Summary Report  |  GSTIN: 27FFRPR0254G1Z2  |  Palghar, Boisar, Maharashtra 401501', M, y);
+  y += 4;
+  const now = new Date();
+  doc.text(`Generated: ${now.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}  |  ${parsedItems.length} Unique SKUs  |  ${totalQty} PCS Total`, M, y);
+  y += 5;
+
+  doc.setDrawColor(192, 57, 43);
+  doc.setLineWidth(0.35);
+  doc.line(M, y, W - M, y);
+  y += 5;
+
+  // Stats row
+  const sw = (W - M * 2 - 9) / 4;
+  [
+    ['Invoices Parsed', String(uploadedFiles.length) + ' file(s)'],
+    ['Unique SKUs', String(parsedItems.length)],
+    ['Total Qty', totalQty + ' PCS'],
+    ['Total Revenue', 'Rs. ' + totalAmt.toFixed(2)],
+  ].forEach((s, i) => {
+    const x = M + i * (sw + 3);
+    doc.setFillColor(245, 242, 236);
+    doc.setDrawColor(216, 208, 192);
+    doc.roundedRect(x, y, sw, 14, 1.5, 1.5, 'FD');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(140, 130, 110);
+    doc.text(s[0].toUpperCase(), x + 3, y + 5);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(26, 20, 16);
+    doc.text(s[1], x + 3, y + 11);
+  });
+  y += 20;
+
+  const groups = [];
+  if (mrp5.length)  groups.push({ items: mrp5,  label: 'MRP Rs. 5 — Items',  hRGB: [39,174,96],   rate: '4.05',  disc: '19.05%' });
+  if (mrp10.length) groups.push({ items: mrp10, label: 'MRP Rs. 10 — Items', hRGB: [211,84,0],    rate: '8.10',  disc: '19.05%' });
+  if (other.length) groups.push({ items: other, label: 'Other MRP — Items',  hRGB: [41,128,185],  rate: '—',     disc: '—'      });
+
+  const colW = [8, 72, 16, 24, 36, 18];
+  let sno = 0;
+
+  groups.forEach(g => {
+    if (y > 240) { doc.addPage(); y = 14; }
+    const subQty = g.items.reduce((s, i) => s + i.totalQty, 0);
+    const subAmt = g.items.reduce((s, i) => s + i.totalAmt, 0);
+
+    doc.setFillColor(...g.hRGB);
+    doc.rect(M, y, W - M * 2, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text(g.label, M + 3, y + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(`Rate: Rs. ${g.rate}  |  Discount: ${g.disc}  |  ${g.items.length} items`, W - M - 3, y + 5, { align: 'right' });
+    y += 9;
+
+    const rows = g.items.map(item => {
+      sno++;
+      return [String(sno), item.name, 'Rs.' + item.mrp, item.totalQty + ' PCS', item.totalAmt.toFixed(2), String(item.invoices.size)];
+    });
+    rows.push(['', 'SUBTOTAL', '', subQty + ' PCS', subAmt.toFixed(2), '']);
+
+    doc.autoTable({
+      startY: y,
+      head: [['#', 'Item Name', 'MRP', 'Total Qty', 'Amount (Rs.)', 'Inv.']],
+      body: rows,
+      margin: { left: M, right: M },
+      columnStyles: {
+        0: { cellWidth: colW[0], halign: 'center', fontSize: 6.5 },
+        1: { cellWidth: colW[1], halign: 'left' },
+        2: { cellWidth: colW[2], halign: 'center' },
+        3: { cellWidth: colW[3], halign: 'right' },
+        4: { cellWidth: colW[4], halign: 'right' },
+        5: { cellWidth: colW[5], halign: 'center' },
+      },
+      headStyles: { fillColor:[50,42,34], textColor:[180,170,155], fontSize:7, fontStyle:'bold', cellPadding:2.5 },
+      bodyStyles: { fontSize:7.5, cellPadding:2.2, textColor:[26,20,16] },
+      alternateRowStyles: { fillColor:[245,242,236] },
+      styles: { font:'helvetica', overflow:'linebreak' },
+      didParseCell(d) {
+        if (d.row.index === rows.length - 1 && d.section === 'body') {
+          d.cell.styles.fillColor = g.hRGB;
+          d.cell.styles.textColor = [255,255,255];
+          d.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  });
+
+  // Grand total
+  if (y > 265) { doc.addPage(); y = 14; }
+  doc.setFillColor(26, 20, 16);
+  doc.rect(M, y, W - M * 2, 11, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(245, 158, 11);
+  doc.text('GRAND TOTAL', M + 4, y + 7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text(totalQty + ' PCS', W - M - 52, y + 7.5, { align: 'right' });
+  doc.text('Rs. ' + totalAmt.toFixed(2), W - M - 4, y + 7.5, { align: 'right' });
+
+  // Page footers
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(160, 150, 130);
+    doc.text('Swastik Enterprises — H. NO-3230/5, Shop No-03, Dhodi Pada, Maan, Palghar, Boisar, Maharashtra 401501', M, 291);
+    doc.text(`Page ${p} of ${pageCount}`, W - M, 291, { align: 'right' });
+    doc.setDrawColor(192, 57, 43);
+    doc.setLineWidth(0.3);
+    doc.line(M, 288, W - M, 288);
+  }
+
+  const d = new Date();
+  doc.save(`Swastik_Items_Summary_${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}.pdf`);
+}
+</script>
+</body>
+</html>
