@@ -11,249 +11,102 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
-body{
-  background:#0e0e0e;
-  color:#e8e8e8;
-  font-family:'Inter',sans-serif;
-  min-height:100vh;
-  font-size:14px;
-}
+body{background:#0e0e0e;color:#e8e8e8;font-family:'Inter',sans-serif;min-height:100vh;font-size:14px;}
 
 /* ── UPLOAD PAGE ── */
-#upload-page{
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  padding:40px 20px;
-  background:#0e0e0e;
-}
-.up-logo{
-  display:flex;align-items:center;gap:14px;
-  margin-bottom:40px;
-}
-.up-logo-icon{
-  width:52px;height:52px;
-  background:#f5a623;
-  border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;font-weight:700;color:#000;
-}
+#upload-page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;background:#0e0e0e;}
+.up-logo{display:flex;align-items:center;gap:14px;margin-bottom:40px;}
+.up-logo-icon{width:52px;height:52px;background:#f5a623;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#000;}
 .up-logo h1{font-size:26px;font-weight:700;color:#fff;}
 .up-logo p{font-size:12px;color:#888;margin-top:2px;}
-
-.drop-box{
-  width:100%;max-width:520px;
-  border:2px dashed #333;
-  border-radius:12px;
-  padding:52px 32px;
-  text-align:center;
-  cursor:pointer;
-  position:relative;
-  transition:border-color .2s,background .2s;
-  background:#161616;
-}
+.drop-box{width:100%;max-width:520px;border:2px dashed #333;border-radius:12px;padding:52px 32px;text-align:center;cursor:pointer;position:relative;transition:border-color .2s,background .2s;background:#161616;}
 .drop-box:hover,.drop-box.drag{border-color:#f5a623;background:#1a1500;}
 .drop-box input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
 .drop-box .di{font-size:48px;margin-bottom:14px;}
 .drop-box h2{font-size:18px;font-weight:600;color:#fff;margin-bottom:8px;}
 .drop-box p{font-size:13px;color:#666;line-height:1.6;}
-
-.file-chips{
-  width:100%;max-width:520px;
-  display:flex;flex-direction:column;gap:8px;
-  margin-top:16px;
-}
-.chip{
-  display:flex;align-items:center;gap:10px;
-  background:#1a1a1a;border:1px solid #2a2a2a;
-  border-radius:8px;padding:10px 14px;
-  animation:fadeUp .2s ease;
-}
+.file-chips{width:100%;max-width:520px;display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+.chip{display:flex;align-items:center;gap:10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;animation:fadeUp .2s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .chip-icon{font-size:18px;flex-shrink:0;}
 .chip-name{flex:1;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .chip-info{font-size:11px;color:#666;white-space:nowrap;}
 .chip-status{font-size:11px;white-space:nowrap;}
-.chip-status.ok{color:#4ade80;}
-.chip-status.err{color:#f87171;}
-.chip-status.busy{color:#fb923c;}
+.chip-status.ok{color:#4ade80;}.chip-status.err{color:#f87171;}.chip-status.busy{color:#fb923c;}
 .chip-del{background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:2px 4px;transition:color .15s;flex-shrink:0;}
 .chip-del:hover{color:#f87171;}
-
 .up-actions{width:100%;max-width:520px;margin-top:20px;display:flex;gap:12px;}
-.btn{
-  display:flex;align-items:center;gap:8px;
-  padding:13px 24px;border-radius:8px;
-  font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
-  cursor:pointer;border:none;transition:all .18s;white-space:nowrap;
-}
+.btn{display:flex;align-items:center;gap:8px;padding:13px 24px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;cursor:pointer;border:none;transition:all .18s;white-space:nowrap;}
 .btn-gold{background:#f5a623;color:#000;flex:1;justify-content:center;}
 .btn-gold:hover{background:#e8961a;transform:translateY(-1px);}
 .btn-gold:disabled{opacity:.4;cursor:not-allowed;transform:none;}
 .btn-ghost{background:#1e1e1e;color:#ccc;border:1px solid #2a2a2a;}
 .btn-ghost:hover{background:#252525;border-color:#444;}
-
-/* Progress */
 .prog-wrap{width:100%;max-width:520px;margin-top:16px;display:none;}
 .prog-bar-bg{background:#222;border-radius:4px;height:4px;margin-bottom:8px;}
 .prog-bar{height:4px;background:#f5a623;border-radius:4px;transition:width .3s;}
 .prog-text{font-size:12px;color:#666;}
-
-/* Log */
 .log-wrap{width:100%;max-width:520px;margin-top:12px;display:none;}
-.log-box{
-  background:#111;border:1px solid #222;border-radius:8px;
-  padding:12px 14px;max-height:130px;overflow-y:auto;
-  font-size:11px;line-height:1.8;color:#4ade80;
-  font-family:'Courier New',monospace;
-}
-.log-warn{color:#fb923c;} .log-err{color:#f87171;}
+.log-box{background:#111;border:1px solid #222;border-radius:8px;padding:12px 14px;max-height:150px;overflow-y:auto;font-size:11px;line-height:1.8;color:#4ade80;font-family:'Courier New',monospace;}
+.log-warn{color:#fb923c;}.log-err{color:#f87171;}
 
-/* ═══════════════════════════════════════════════
-   OUTPUT PAGE
-═══════════════════════════════════════════════ */
+/* ── OUTPUT PAGE ── */
 #output-page{display:none;background:#0e0e0e;min-height:100vh;padding-bottom:60px;}
-
-/* Top bar */
-.top-bar{
-  background:#111;
-  border-bottom:1px solid #222;
-  padding:18px 32px;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:16px;flex-wrap:wrap;
-  position:sticky;top:0;z-index:100;
-}
+.top-bar{background:#111;border-bottom:1px solid #222;padding:18px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:100;}
 .top-brand{display:flex;align-items:center;gap:12px;}
-.top-logo{
-  width:40px;height:40px;background:#f5a623;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:16px;font-weight:700;color:#000;flex-shrink:0;
-}
+.top-logo{width:40px;height:40px;background:#f5a623;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;flex-shrink:0;}
 .top-brand h2{font-size:18px;font-weight:700;color:#fff;line-height:1.2;}
 .top-brand p{font-size:11px;color:#666;margin-top:1px;}
 .top-actions{display:flex;gap:10px;align-items:center;}
-.btn-dl{
-  background:#f5a623;color:#000;
-  border:none;border-radius:8px;
-  padding:10px 20px;font-weight:600;font-size:13px;
-  cursor:pointer;display:flex;align-items:center;gap:7px;
-  transition:all .18s;
-}
+.btn-dl{background:#f5a623;color:#000;border:none;border-radius:8px;padding:10px 20px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .18s;}
 .btn-dl:hover{background:#e8961a;transform:translateY(-1px);}
-.btn-back{
-  background:#1e1e1e;color:#aaa;border:1px solid #2a2a2a;
-  border-radius:8px;padding:10px 16px;font-size:13px;font-weight:500;
-  cursor:pointer;transition:all .18s;
-}
+.btn-back{background:#1e1e1e;color:#aaa;border:1px solid #2a2a2a;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all .18s;}
 .btn-back:hover{background:#252525;color:#fff;}
-
 .out-body{max-width:900px;margin:0 auto;padding:32px 24px;}
 
-/* Stats cards */
+/* Stat cards */
 .stat-cards{display:flex;flex-direction:column;gap:16px;margin-bottom:32px;}
-.stat-card{
-  background:#161616;
-  border:1px solid #222;
-  border-radius:12px;
-  padding:22px 26px;
-}
-.stat-card .sc-label{
-  font-size:11px;font-weight:500;
-  color:#555;text-transform:uppercase;letter-spacing:1.5px;
-  margin-bottom:10px;
-}
-.stat-card .sc-value{
-  font-size:36px;font-weight:700;line-height:1;
-  letter-spacing:-1px;
-}
-.stat-card .sc-value.gold{color:#f5a623;}
-.stat-card .sc-value.green{color:#4ade80;}
-.stat-card .sc-sub{font-size:13px;color:#555;margin-top:6px;}
+.stat-card{background:#161616;border:1px solid #222;border-radius:12px;padding:22px 26px;}
+.sc-label{font-size:11px;font-weight:500;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.sc-value{font-size:36px;font-weight:700;line-height:1;letter-spacing:-1px;}
+.sc-value.gold{color:#f5a623;}.sc-value.green{color:#4ade80;}
+.sc-sub{font-size:13px;color:#555;margin-top:6px;}
 
 /* Section header */
-.sec-header{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 18px;border-radius:10px 10px 0 0;
-  margin-top:28px;
-}
-.sec-header.mrp5{background:#1a3a2a;}
-.sec-header.mrp10{background:#2a1a3a;}
-.sec-badge{
-  font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;
-}
-.sec-badge.mrp5{background:#14532d;color:#4ade80;}
-.sec-badge.mrp10{background:#581c87;color:#c084fc;}
-.sec-header h3{font-size:15px;font-weight:600;color:#fff;}
-.sec-header .sec-meta{margin-left:auto;font-size:12px;color:#666;}
+.sec-header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:10px 10px 0 0;margin-top:28px;}
+.sec-header.mrp5{background:#1a3a2a;}.sec-header.mrp10{background:#2a1a3a;}
+.sec-badge{font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;}
+.sec-badge.mrp5{background:#14532d;color:#4ade80;}.sec-badge.mrp10{background:#581c87;color:#c084fc;}
+.sec-meta{margin-left:auto;font-size:12px;color:#666;}
 
 /* Table */
-.tbl-container{
-  border:1px solid #222;border-top:none;
-  border-radius:0 0 10px 10px;overflow:hidden;
-  margin-bottom:4px;
-}
+.tbl-container{border:1px solid #222;border-top:none;border-radius:0 0 10px 10px;overflow:hidden;margin-bottom:4px;}
 table{width:100%;border-collapse:collapse;}
 thead tr{background:#1a1a1a;}
-thead th{
-  padding:11px 14px;
-  font-size:11px;font-weight:500;
-  text-transform:uppercase;letter-spacing:1px;
-  color:#555;text-align:right;
-  border-bottom:1px solid #222;
-}
-thead th:nth-child(1){text-align:center;width:44px;}
-thead th:nth-child(2){text-align:left;}
+thead th{padding:11px 14px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:1px;color:#555;text-align:right;border-bottom:1px solid #222;}
+thead th:nth-child(1){text-align:center;width:44px;}thead th:nth-child(2){text-align:left;}
 tbody tr{border-bottom:1px solid #1a1a1a;transition:background .1s;}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:#181818;}
 tbody td{padding:12px 14px;text-align:right;font-size:13px;}
 tbody td:nth-child(1){text-align:center;font-size:12px;color:#444;width:44px;}
 tbody td:nth-child(2){text-align:left;font-weight:500;color:#e0e0e0;}
-.mrp-tag{
-  display:inline-block;font-size:12px;font-weight:600;
-  padding:2px 8px;border-radius:5px;
-}
-.mrp-tag.t5{background:#14532d;color:#4ade80;}
-.mrp-tag.t10{background:#4c1d95;color:#c084fc;}
-.mrp-tag.tx{background:#1e3a5f;color:#60a5fa;}
-.qty-cell{color:#aaa;font-size:12px;}
-.amt-cell{color:#e0e0e0;font-weight:600;font-size:13px;}
-.inv-cell{color:#555;font-size:12px;}
-
-/* Subtotal row */
-.sub-tr td{
-  background:#1a1a1a!important;
-  font-weight:600;font-size:13px;
-  border-top:1px solid #2a2a2a!important;
-  color:#aaa;
-}
+.mrp-tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;}
+.mrp-tag.t5{background:#14532d;color:#4ade80;}.mrp-tag.t10{background:#4c1d95;color:#c084fc;}.mrp-tag.tx{background:#1e3a5f;color:#60a5fa;}
+.qty-cell{color:#aaa;font-size:12px;}.amt-cell{color:#e0e0e0;font-weight:600;font-size:13px;}.inv-cell{color:#555;font-size:12px;}
+.sub-tr td{background:#1a1a1a!important;font-weight:600;font-size:13px;border-top:1px solid #2a2a2a!important;color:#aaa;}
 .sub-tr:hover{background:#1a1a1a!important;}
-.sub-tr td.sub-label{color:#fff;font-size:13px;}
 
 /* Grand Total */
-.grand-card{
-  background:#161616;border:1px solid #2a2a2a;
-  border-radius:12px;padding:24px 28px;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:20px;flex-wrap:wrap;
-  margin-top:24px;
-}
+.grand-card{background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:24px;}
 .grand-card .gl{font-size:20px;font-weight:700;color:#fff;}
 .grand-card .gv-row{display:flex;gap:48px;flex-wrap:wrap;}
 .gv-block .gv-label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
 .gv-block .gv-val{font-size:20px;font-weight:700;color:#f5a623;}
-
-/* Footer */
-.out-footer{
-  text-align:center;margin-top:40px;
-  font-size:11px;color:#333;line-height:1.8;
-}
+.out-footer{text-align:center;margin-top:40px;font-size:11px;color:#333;line-height:1.8;}
 
 @media(max-width:600px){
-  .top-bar{padding:14px 16px;}
-  .out-body{padding:20px 14px;}
+  .top-bar{padding:14px 16px;}.out-body{padding:20px 14px;}
   thead th:nth-child(6),tbody td:nth-child(6){display:none;}
   .grand-card .gv-row{gap:24px;}
 }
@@ -261,7 +114,7 @@ tbody td:nth-child(2){text-align:left;font-weight:500;color:#e0e0e0;}
 </head>
 <body>
 
-<!-- ═══════════ UPLOAD PAGE ═══════════ -->
+<!-- UPLOAD PAGE -->
 <div id="upload-page">
   <div class="up-logo">
     <div class="up-logo-icon">SE</div>
@@ -270,78 +123,63 @@ tbody td:nth-child(2){text-align:left;font-weight:500;color:#e0e0e0;}
       <p>Invoice Items Summary Generator</p>
     </div>
   </div>
-
   <div class="drop-box" id="dropBox">
     <input type="file" id="fileInput" accept=".pdf" multiple/>
     <div class="di">📄</div>
     <h2>Drop Invoice PDFs here</h2>
     <p>Single ya multiple PDFs upload karein<br/>Multi-page PDF bhi support hai</p>
   </div>
-
   <div class="file-chips" id="fileChips"></div>
-
   <div class="up-actions">
-    <button class="btn btn-gold" id="parseBtn" onclick="parseAll()" disabled>
-      ⚡ Parse &amp; Generate Summary
-    </button>
-    <button class="btn btn-ghost" id="clearBtn" onclick="clearAll()" style="display:none">
-      🗑 Clear
-    </button>
+    <button class="btn btn-gold" id="parseBtn" onclick="parseAll()" disabled>⚡ Parse &amp; Generate Summary</button>
+    <button class="btn btn-ghost" id="clearBtn" onclick="clearAll()" style="display:none">🗑 Clear</button>
   </div>
-
   <div class="prog-wrap" id="progWrap">
     <div class="prog-bar-bg"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
     <div class="prog-text" id="progText">Starting...</div>
   </div>
-
   <div class="log-wrap" id="logWrap">
     <div class="log-box" id="logBox"></div>
   </div>
 </div>
 
-<!-- ═══════════ OUTPUT PAGE ═══════════ -->
+<!-- OUTPUT PAGE -->
 <div id="output-page">
   <div class="top-bar">
     <div class="top-brand">
       <div class="top-logo">SE</div>
       <div>
         <h2>Swastik Enterprises</h2>
-        <p id="topMeta">GSTIN: 27FFRPR0254G1Z2 | Items Summary | —</p>
+        <p id="topMeta">GSTIN: 27FFRPR0254G1Z2 | Items Summary</p>
       </div>
     </div>
     <div class="top-actions">
       <button class="btn-back" onclick="goBack()">← Back</button>
-      <button class="btn-dl" onclick="generatePDF()">
-        ⬇ Download PDF
-      </button>
+      <button class="btn-dl" onclick="generatePDF()">⬇ Download PDF</button>
     </div>
   </div>
-
   <div class="out-body">
     <div class="stat-cards" id="statCards"></div>
     <div id="tableArea"></div>
     <div class="grand-card" id="grandCard"></div>
-    <div class="out-footer">
-      Swastik Enterprises — H. NO-3230/5, Shop No-03, Dhodi Pada, Maan, Palghar, Boisar, Maharashtra 401501
-    </div>
+    <div class="out-footer">Swastik Enterprises — H. NO-3230/5, Shop No-03, Dhodi Pada, Maan, Palghar, Boisar, Maharashtra 401501</div>
   </div>
 </div>
 
 <script>
-// ─── PDF.js worker ────────────────────────────────────────────────────────────
+// PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// ─── State ────────────────────────────────────────────────────────────────────
-let files       = [];   // { file, name, pages }
-let parsedItems = [];   // final aggregated items
+let files = [];
+let parsedItems = [];
 
-// ─── Drag & Drop ──────────────────────────────────────────────────────────────
-const dropBox   = document.getElementById('dropBox');
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
+const dropBox = document.getElementById('dropBox');
 const fileInput = document.getElementById('fileInput');
 
-dropBox.addEventListener('dragover',  e => { e.preventDefault(); dropBox.classList.add('drag'); });
-dropBox.addEventListener('dragleave', ()  => dropBox.classList.remove('drag'));
+dropBox.addEventListener('dragover', e => { e.preventDefault(); dropBox.classList.add('drag'); });
+dropBox.addEventListener('dragleave', () => dropBox.classList.remove('drag'));
 dropBox.addEventListener('drop', e => {
   e.preventDefault(); dropBox.classList.remove('drag');
   addFiles([...e.dataTransfer.files].filter(f => f.type === 'application/pdf'));
@@ -366,7 +204,7 @@ function removeFile(i) {
 
 function renderChips() {
   document.getElementById('fileChips').innerHTML = files.map((f, i) => `
-    <div class="chip" id="chip-${i}">
+    <div class="chip">
       <span class="chip-icon">📑</span>
       <span class="chip-name">${f.name}</span>
       <span class="chip-info" id="ci-${i}">${f.pages ? f.pages + ' pages' : ''}</span>
@@ -389,27 +227,27 @@ function goBack() {
   document.getElementById('upload-page').style.display = 'flex';
 }
 
-// ─── Log helpers ──────────────────────────────────────────────────────────────
 function log(msg, type) {
   document.getElementById('logWrap').style.display = '';
   const d = document.createElement('div');
   d.className = type === 'err' ? 'log-err' : type === 'warn' ? 'log-warn' : '';
   d.textContent = msg;
   const box = document.getElementById('logBox');
-  box.appendChild(d);
-  box.scrollTop = box.scrollHeight;
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
 }
+
 function setProg(pct, txt) {
   document.getElementById('progWrap').style.display = '';
   document.getElementById('progBar').style.width = pct + '%';
   document.getElementById('progText').textContent = txt;
 }
+
 function setCS(i, cls, txt) {
-  const e = document.getElementById(`cs-${i}`);
+  const e = document.getElementById('cs-' + i);
   if (e) { e.className = 'chip-status ' + cls; e.textContent = txt; }
 }
 
-// ─── CORE PARSE ───────────────────────────────────────────────────────────────
+// ── MAIN PARSE ────────────────────────────────────────────────────────────────
 async function parseAll() {
   parsedItems = [];
   document.getElementById('logBox').innerHTML = '';
@@ -426,44 +264,31 @@ async function parseAll() {
     log('── ' + uf.name);
 
     try {
-      const arrayBuf = await uf.file.arrayBuffer();
-      const pdf      = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
-      const np       = pdf.numPages;
+      const buf = await uf.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const np  = pdf.numPages;
       files[fi].pages = np;
-      const ci = document.getElementById(`ci-${fi}`);
+      const ci = document.getElementById('ci-' + fi);
       if (ci) ci.textContent = np + ' pages';
       log('   ' + np + ' page(s) found');
 
       for (let p = 1; p <= np; p++) {
         const page    = await pdf.getPage(p);
         const content = await page.getTextContent();
+        const result  = parseInvoicePage(content.items);
 
-        // ── Extract text tokens with position info ──────────────────────────
-        const tokens = content.items.map(item => ({
-          text: item.str.trim(),
-          x: Math.round(item.transform[4]),
-          y: Math.round(item.transform[5]),
-          w: item.width
-        })).filter(t => t.text.length > 0);
-
-        const result = parseInvoicePage(tokens);
-
-        if (!result || result.items.length === 0) {
+        if (!result || !result.items.length) {
           log('   Page ' + p + ': no items found', 'warn');
           continue;
         }
 
         invoiceCount++;
-        log('   Page ' + p + ': ' + result.invoiceNo + ' → ' + result.items.length + ' line items');
+        log('   Page ' + p + ': ' + result.invoiceNo + ' → ' + result.items.length + ' items');
 
         result.items.forEach(item => {
           const key = item.name + '||' + item.mrp;
           if (!summary[key]) {
-            summary[key] = {
-              name: item.name, mrp: item.mrp,
-              totalQty: 0, totalAmt: 0,
-              invoices: new Set()
-            };
+            summary[key] = { name: item.name, mrp: item.mrp, totalQty: 0, totalAmt: 0, invoices: new Set() };
           }
           summary[key].totalQty += item.qty;
           summary[key].totalAmt += item.amt;
@@ -471,163 +296,161 @@ async function parseAll() {
         });
       }
       setCS(fi, 'ok', '✓ done');
-    } catch (e) {
+    } catch(e) {
       log('   ERROR: ' + e.message, 'err');
       setCS(fi, 'err', '✕ error');
+      console.error(e);
     }
   }
 
   setProg(100, 'Complete!');
-  parsedItems = Object.values(summary)
-    .sort((a, b) => a.mrp - b.mrp || a.name.localeCompare(b.name));
-
-  log('\n✅ ' + invoiceCount + ' invoices parsed · ' + parsedItems.length + ' unique SKUs');
+  parsedItems = Object.values(summary).sort((a, b) => a.mrp - b.mrp || a.name.localeCompare(b.name));
+  log('✅ ' + invoiceCount + ' invoices · ' + parsedItems.length + ' unique SKUs');
   document.getElementById('parseBtn').disabled = false;
 
   if (!parsedItems.length) {
-    log('⚠ No items extracted. Check if PDFs are Swastik Enterprises format.', 'warn');
+    log('⚠ No items extracted. Check console for details.', 'warn');
     return;
   }
-
   showOutputPage(invoiceCount);
 }
 
-// ─── SMART INVOICE PARSER ─────────────────────────────────────────────────────
-// Swastik PDF has scattered tokens. Strategy:
-// 1. Group tokens by Y row (±3px tolerance)
-// 2. Find HSN rows (contain 21069099 / 18069090)
-// 3. Reconstruct item data from surrounding rows/tokens
-function parseInvoicePage(tokens) {
-  // Find invoice number
-  let invoiceNo = 'UNKNOWN';
-  const fullStr = tokens.map(t => t.text).join(' ');
-  const invMatch = fullStr.match(/SWE[\/\s]*(\d+)/i);
-  if (invMatch) invoiceNo = 'SWE/' + invMatch[1];
+// ── THE CORRECT PARSER ────────────────────────────────────────────────────────
+// Confirmed format from actual PDF (via pdfplumber):
+//   Line A: "1 Tomato Balls 21069099 12 PCS 5 4.05 48.57"
+//   Line B: "(19.05% OFF)"   ← always next line, standalone
+//
+// PDF.js getTextContent gives us individual text tokens with Y positions.
+// We group by Y into lines, then match the exact pattern.
 
-  // Group tokens into rows by Y coordinate (within 3px)
-  const rows = [];
-  tokens.forEach(tok => {
-    const row = rows.find(r => Math.abs(r.y - tok.y) <= 3);
-    if (row) { row.tokens.push(tok); }
-    else { rows.push({ y: tok.y, tokens: [tok] }); }
+function parseInvoicePage(pdfItems) {
+  // Step 1: Group text tokens into lines by Y coordinate
+  const lineMap = {};
+  pdfItems.forEach(item => {
+    if (!item.str.trim()) return;
+    // Round Y to nearest 2px to group tokens on same visual line
+    const y = Math.round(item.transform[5] / 2) * 2;
+    if (!lineMap[y]) lineMap[y] = [];
+    lineMap[y].push({ x: item.transform[4], text: item.str });
   });
-  rows.sort((a, b) => b.y - a.y); // top to bottom
 
-  // Sort tokens within each row by X
-  rows.forEach(r => r.tokens.sort((a, b) => a.x - b.x));
+  // Step 2: Sort lines top→bottom, tokens left→right, build line strings
+  const lines = Object.keys(lineMap)
+    .map(y => ({
+      y: parseFloat(y),
+      text: lineMap[y]
+        .sort((a, b) => a.x - b.x)
+        .map(t => t.text)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }))
+    .filter(l => l.text.length > 0)
+    .sort((a, b) => b.y - a.y); // descending Y = top to bottom in PDF coords
 
-  // Get row text
-  rows.forEach(r => { r.text = r.tokens.map(t => t.text).join(' '); });
+  // Step 3: Find invoice number
+  let invoiceNo = 'UNKNOWN';
+  for (const l of lines) {
+    const m = l.text.match(/SWE[\/]?(\d+)/i);
+    if (m) { invoiceNo = 'SWE/' + m[1]; break; }
+  }
 
-  const HSN_CODES = ['21069099', '18069090', '21069090', '18069099'];
+  // Step 4: Find item lines
+  // Exact pattern: "N  ItemName  HSN  QTY PCS  MRP  RATE  AMOUNT"
+  // where HSN = 21069099 or 18069090
+  // The "(X% OFF)" appears on the NEXT line and can be ignored for parsing
+  //
+  // Regex for item line:
+  // ^\d+\s+          → serial number
+  // (.+?)\s+          → item name (non-greedy)
+  // \d{8}\s+          → HSN code (8 digits)
+  // (\d+)\s+PCS?\s+   → quantity
+  // ([\d.]+)\s+       → MRP
+  // [\d.]+\s+         → rate (skip)
+  // ([\d.]+)$         → amount
+
+  const ITEM_RE = /^(\d+)\s+(.+?)\s+(\d{8})\s+(\d+)\s+PCS?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*$/i;
+  // More flexible version that also handles slight variations:
+  const ITEM_RE2 = /^(\d+)\s+(.+?)\s+(21069099|18069090|21069090|18069099)\s+(\d+)\s*PCS?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/i;
+
   const items = [];
+  const seen  = new Set();
 
-  // For each row, check if it has HSN code
-  rows.forEach((row, ri) => {
-    const hasHSN = HSN_CODES.some(h => row.text.includes(h));
-    if (!hasHSN) return;
+  // Also try joining consecutive lines in case PDF.js splits differently
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].text;
 
-    // Collect tokens from this row and adjacent rows (±6px) for full item data
-    const nearby = rows.filter(r => Math.abs(r.y - row.y) <= 6);
-    const allTokens = nearby.flatMap(r => r.tokens).sort((a, b) => a.x - b.x);
-    const combined  = allTokens.map(t => t.text).join(' ');
-
-    // Try Pattern A: full row with all data
-    // "1 Item Name 21069099 24 PCS 5 (19.05% OFF) 4.05 48.57"
-    let m = combined.match(
-      /(\d+)\s+([A-Za-z][A-Za-z0-9 \-&']+?)\s+(?:21069099|18069090|21069090)\s+(\d+)\s*PCS?\s+([\d.]+)\s*\([\d.]+%\s*OFF\)\s+[\d.]+\s+([\d.]+)/i
-    );
+    // Try matching on this line alone
+    let m = ITEM_RE2.exec(line);
     if (m) {
-      const name = cleanName(m[2]);
-      const qty  = parseInt(m[3]);
-      const mrp  = parseFloat(m[4]);
-      const amt  = parseFloat(m[5]);
-      if (valid(name, qty, mrp, amt)) {
-        items.push({ name, mrp, qty, amt });
-        return;
+      const name = normalizeItemName(m[2]);
+      const qty  = parseInt(m[4]);
+      const mrp  = parseFloat(m[5]);
+      // m[6] = rate, m[7] = amount
+      const amt  = parseFloat(m[7]);
+      if (isValidItem(name, qty, mrp, amt)) {
+        const key = name + '|' + mrp + '|' + qty + '|' + amt;
+        if (!seen.has(key)) { seen.add(key); items.push({ name, mrp, qty, amt }); }
       }
+      continue;
     }
 
-    // Try Pattern B: name might be in previous row
-    // Sometimes name is on the row above HSN row
-    const prevRow = rows[ri - 1];
-    if (prevRow) {
-      const prevText = prevRow.text;
-      // prevText might be: "1 Tomato Balls"
-      const nameMatch = prevText.match(/^\d+\s+([A-Za-z].+)$/);
-      const candidate = nameMatch ? nameMatch[1].trim() : prevText.trim();
-
-      // current row has qty, mrp, amount
-      m = row.text.match(
-        /(?:21069099|18069090|21069090)\s+(\d+)\s*PCS?\s+([\d.]+)\s*\([\d.]+%\s*OFF\)\s+[\d.]+\s+([\d.]+)/i
-      );
-      if (m && candidate.length >= 2) {
-        const name = cleanName(candidate);
-        const qty  = parseInt(m[1]);
-        const mrp  = parseFloat(m[2]);
-        const amt  = parseFloat(m[3]);
-        if (valid(name, qty, mrp, amt)) {
-          items.push({ name, mrp, qty, amt });
-          return;
+    // Try joining with next line (in case amount wrapped)
+    if (i + 1 < lines.length) {
+      const combined = line + ' ' + lines[i + 1].text;
+      m = ITEM_RE2.exec(combined);
+      if (m) {
+        const name = normalizeItemName(m[2]);
+        const qty  = parseInt(m[4]);
+        const mrp  = parseFloat(m[5]);
+        const amt  = parseFloat(m[7]);
+        if (isValidItem(name, qty, mrp, amt)) {
+          const key = name + '|' + mrp + '|' + qty + '|' + amt;
+          if (!seen.has(key)) { seen.add(key); items.push({ name, mrp, qty, amt }); }
         }
       }
     }
+  }
 
-    // Try Pattern C: HSN row alone has qty/mrp/amt, name in same row before HSN
-    m = row.text.match(
-      /(.+?)\s+(?:21069099|18069090|21069090)\s+(\d+)\s*PCS?\s+([\d.]+)\s*\([\d.]+%\s*OFF\)\s+[\d.]+\s+([\d.]+)/i
-    );
-    if (m) {
-      const name = cleanName(m[1]);
-      const qty  = parseInt(m[2]);
-      const mrp  = parseFloat(m[3]);
-      const amt  = parseFloat(m[4]);
-      if (valid(name, qty, mrp, amt)) {
-        items.push({ name, mrp, qty, amt });
-      }
-    }
-  });
-
-  // De-duplicate (same name+mrp+qty+amt)
-  const seen = new Set();
-  const unique = items.filter(item => {
-    const k = `${item.name}|${item.mrp}|${item.qty}|${item.amt}`;
-    if (seen.has(k)) return false;
-    seen.add(k); return true;
-  });
-
-  return { invoiceNo, items: unique };
+  return { invoiceNo, items };
 }
 
-function cleanName(raw) {
+function normalizeItemName(raw) {
   return raw
-    .replace(/^\d+\s*/, '')   // remove leading serial number
+    .replace(/^\d+\s*/, '')      // remove leading serial number if any
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    // Title case each word
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
 }
 
-function valid(name, qty, mrp, amt) {
+function isValidItem(name, qty, mrp, amt) {
   if (!name || name.length < 2) return false;
-  if (qty <= 0 || mrp <= 0 || amt <= 0) return false;
-  // Reject rows that are clearly not item names
-  const bad = /^(S\.NO|ITEMS|HSN|QTY|MRP|RATE|AMOUNT|TOTAL|CGST|SGST|BILL|SHIP|TAX|INVOICE|GSTIN|MOBILE|PAN|BANK)/i;
-  if (bad.test(name)) return false;
+  if (isNaN(qty) || qty <= 0) return false;
+  if (isNaN(mrp) || mrp <= 0) return false;
+  if (isNaN(amt) || amt <= 0) return false;
+  // Skip header/footer rows
+  const skip = /^(s\.no|items|hsn|qty|mrp|rate|amount|total|cgst|sgst|bill|ship|tax invoice|gstin|mobile|pan|bank|name|ifsc|account|terms|subject|authorised|swastik|palghar|boisar|email|upi)/i;
+  if (skip.test(name)) return false;
   return true;
 }
 
-// ─── OUTPUT PAGE ──────────────────────────────────────────────────────────────
+// ── RENDER OUTPUT ─────────────────────────────────────────────────────────────
 function showOutputPage(invoiceCount) {
   const totalQty = parsedItems.reduce((s, i) => s + i.totalQty, 0);
   const totalAmt = parsedItems.reduce((s, i) => s + i.totalAmt, 0);
-  const mrp5     = parsedItems.filter(i => i.mrp === 5);
-  const mrp10    = parsedItems.filter(i => i.mrp === 10);
-  const other    = parsedItems.filter(i => i.mrp !== 5 && i.mrp !== 10);
+  const mrp5  = parsedItems.filter(i => i.mrp === 5);
+  const mrp10 = parsedItems.filter(i => i.mrp === 10);
+  const other = parsedItems.filter(i => i.mrp !== 5 && i.mrp !== 10);
 
   const now = new Date();
   document.getElementById('topMeta').textContent =
-    `GSTIN: 27FFRPR0254G1Z2  |  Items Summary  |  ${now.toLocaleDateString('en-IN', {day:'2-digit',month:'2-digit',year:'numeric'})}`;
+    'GSTIN: 27FFRPR0254G1Z2  |  Items Summary  |  ' +
+    now.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  // ── Stat cards (individual, stacked like screenshot) ──────────────────────
+  // Stat cards
   document.getElementById('statCards').innerHTML = `
     <div class="stat-card">
       <div class="sc-label">Unique SKUs</div>
@@ -641,20 +464,17 @@ function showOutputPage(invoiceCount) {
     </div>
     <div class="stat-card">
       <div class="sc-label">Total Revenue</div>
-      <div class="sc-value gold">₹${totalAmt.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</div>
+      <div class="sc-value gold">₹${Math.round(totalAmt).toLocaleString('en-IN')}</div>
       <div class="sc-sub">Before tax (taxable value)</div>
-    </div>
-  `;
+    </div>`;
 
-  // ── Tables ────────────────────────────────────────────────────────────────
+  // Tables
   const groups = [];
-  if (mrp5.length)  groups.push({ items: mrp5,  cls: 'mrp5',  label: 'MRP ₹5 Items',  badgeCls: 'mrp5',  rate: '₹4.05', disc: '19.05%', tagCls: 't5' });
+  if (mrp5.length)  groups.push({ items: mrp5,  cls: 'mrp5',  label: 'MRP ₹5 Items',  badgeCls: 'mrp5',  rate: '₹4.05', disc: '19.05%', tagCls: 't5'  });
   if (mrp10.length) groups.push({ items: mrp10, cls: 'mrp10', label: 'MRP ₹10 Items', badgeCls: 'mrp10', rate: '₹8.10', disc: '19.05%', tagCls: 't10' });
-  if (other.length) groups.push({ items: other, cls: 'mrp10', label: 'Other Items',    badgeCls: 'mrp10', rate: '—',     disc: '—',      tagCls: 'tx' });
+  if (other.length) groups.push({ items: other, cls: 'mrp10', label: 'Other Items',    badgeCls: 'mrp10', rate: '—',     disc: '—',      tagCls: 'tx'  });
 
-  let html = '';
-  let sno  = 0;
-
+  let html = ''; let sno = 0;
   groups.forEach(g => {
     const subQty = g.items.reduce((s, i) => s + i.totalQty, 0);
     const subAmt = g.items.reduce((s, i) => s + i.totalAmt, 0);
@@ -676,168 +496,120 @@ function showOutputPage(invoiceCount) {
         <span style="color:#aaa;font-size:13px;font-weight:500">Rate: ${g.rate} &nbsp;|&nbsp; Discount: ${g.disc}</span>
         <span class="sec-meta">${g.items.length} items</span>
       </div>
-      <div class="tbl-container">
-        <table>
-          <thead><tr>
-            <th>#</th>
-            <th style="text-align:left">ITEM NAME</th>
-            <th>MRP</th>
-            <th>TOTAL QTY</th>
-            <th>TOTAL AMOUNT</th>
-            <th>INVOICES</th>
-          </tr></thead>
-          <tbody>
-            ${rows}
-            <tr class="sub-tr">
-              <td></td>
-              <td class="sub-label" style="text-align:left;font-weight:600;color:#fff">Subtotal</td>
-              <td></td>
-              <td class="qty-cell">${subQty} PCS</td>
-              <td class="amt-cell">₹${subAmt.toFixed(2)}</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>`;
+      <div class="tbl-container"><table>
+        <thead><tr>
+          <th>#</th><th style="text-align:left">ITEM NAME</th><th>MRP</th>
+          <th>TOTAL QTY</th><th>TOTAL AMOUNT</th><th>INVOICES</th>
+        </tr></thead>
+        <tbody>
+          ${rows}
+          <tr class="sub-tr">
+            <td></td>
+            <td style="text-align:left;font-weight:600;color:#fff">Subtotal</td>
+            <td></td>
+            <td class="qty-cell">${subQty} PCS</td>
+            <td class="amt-cell">₹${subAmt.toFixed(2)}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table></div>`;
   });
 
   document.getElementById('tableArea').innerHTML = html;
 
-  // ── Grand total card ──────────────────────────────────────────────────────
   document.getElementById('grandCard').innerHTML = `
     <div class="gl">Grand Total</div>
     <div class="gv-row">
-      <div class="gv-block">
-        <div class="gv-label">Total SKUs</div>
-        <div class="gv-val">${parsedItems.length}</div>
-      </div>
-      <div class="gv-block">
-        <div class="gv-label">Total Qty</div>
-        <div class="gv-val">${totalQty} PCS</div>
-      </div>
-      <div class="gv-block">
-        <div class="gv-label">Total Amount</div>
-        <div class="gv-val">₹${totalAmt.toFixed(2)}</div>
-      </div>
-    </div>
-  `;
+      <div class="gv-block"><div class="gv-label">Total SKUs</div><div class="gv-val">${parsedItems.length}</div></div>
+      <div class="gv-block"><div class="gv-label">Total Qty</div><div class="gv-val">${totalQty} PCS</div></div>
+      <div class="gv-block"><div class="gv-label">Total Amount</div><div class="gv-val">₹${totalAmt.toFixed(2)}</div></div>
+    </div>`;
 
-  // Switch pages
-  document.getElementById('upload-page').style.display  = 'none';
-  document.getElementById('output-page').style.display  = 'block';
+  document.getElementById('upload-page').style.display = 'none';
+  document.getElementById('output-page').style.display = 'block';
   window.scrollTo(0, 0);
 }
 
-// ─── GENERATE PDF ─────────────────────────────────────────────────────────────
+// ── GENERATE PDF ──────────────────────────────────────────────────────────────
 function generatePDF() {
   if (!parsedItems.length) return;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const W   = doc.internal.pageSize.getWidth();
-  const M   = 14;
-  let y     = 0;
+  const W = doc.internal.pageSize.getWidth();
+  const M = 14;
+  let y = 0;
 
   const totalQty = parsedItems.reduce((s, i) => s + i.totalQty, 0);
   const totalAmt = parsedItems.reduce((s, i) => s + i.totalAmt, 0);
-  const mrp5     = parsedItems.filter(i => i.mrp === 5);
-  const mrp10    = parsedItems.filter(i => i.mrp === 10);
-  const other    = parsedItems.filter(i => i.mrp !== 5 && i.mrp !== 10);
+  const mrp5  = parsedItems.filter(i => i.mrp === 5);
+  const mrp10 = parsedItems.filter(i => i.mrp === 10);
+  const other = parsedItems.filter(i => i.mrp !== 5 && i.mrp !== 10);
 
-  // Top bar
+  // Header
   doc.setFillColor(245, 166, 35);
   doc.rect(0, 0, W, 2, 'F');
   y = 13;
-
-  // Logo box
   doc.setFillColor(245, 166, 35);
   doc.roundedRect(M, y - 6, 12, 12, 1.5, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
   doc.text('SE', M + 3.5, y + 1.5);
-
-  // Company name
-  doc.setFontSize(17);
-  doc.setTextColor(20, 20, 20);
+  doc.setFontSize(17); doc.setTextColor(20, 20, 20);
   doc.text('SWASTIK ENTERPRISES', M + 15, y);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(120, 110, 100);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120, 110, 100);
   y += 5.5;
   doc.text('GSTIN: 27FFRPR0254G1Z2  |  Items Summary Report  |  Palghar, Boisar, Maharashtra 401501', M + 15, y);
   y += 4;
   const now = new Date();
-  doc.text(`Generated: ${now.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}  |  ${parsedItems.length} Unique SKUs  |  ${totalQty} PCS Total`, M + 15, y);
+  doc.text('Generated: ' + now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) +
+    '  |  ' + parsedItems.length + ' Unique SKUs  |  ' + totalQty + ' PCS Total', M + 15, y);
   y += 6;
-
-  doc.setDrawColor(245, 166, 35);
-  doc.setLineWidth(0.4);
-  doc.line(M, y, W - M, y);
+  doc.setDrawColor(245, 166, 35); doc.setLineWidth(0.4); doc.line(M, y, W - M, y);
   y += 6;
 
   // Stats
-  const sw  = (W - M * 2 - 8) / 3;
-  const sts = [
-    ['Unique SKUs', String(parsedItems.length), `${mrp5.length} @ Rs5 · ${mrp10.length} @ Rs10`],
-    ['Total Qty Sold', totalQty + ' PCS', `${files.length} file(s) parsed`],
+  const sw = (W - M * 2 - 8) / 3;
+  [
+    ['Unique SKUs', String(parsedItems.length), mrp5.length + ' @ Rs5 · ' + mrp10.length + ' @ Rs10'],
+    ['Total Qty Sold', totalQty + ' PCS', files.length + ' file(s) parsed'],
     ['Total Revenue', 'Rs. ' + totalAmt.toFixed(2), 'Taxable value (before GST)'],
-  ];
-  sts.forEach((s, i) => {
+  ].forEach((s, i) => {
     const x = M + i * (sw + 4);
-    doc.setFillColor(245, 242, 235);
-    doc.setDrawColor(210, 200, 185);
+    doc.setFillColor(245, 242, 235); doc.setDrawColor(210, 200, 185);
     doc.roundedRect(x, y, sw, 16, 2, 2, 'FD');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(140, 130, 110);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(140, 130, 110);
     doc.text(s[0].toUpperCase(), x + 4, y + 5.5);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
     doc.text(s[1], x + 4, y + 11.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(160, 150, 130);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(160, 150, 130);
     doc.text(s[2], x + 4, y + 15);
   });
   y += 23;
 
   const groups = [];
-  if (mrp5.length)  groups.push({ items: mrp5,  label: 'MRP Rs. 5 — Items',  hRGB: [39, 174, 96],   rate: '4.05', disc: '19.05%' });
-  if (mrp10.length) groups.push({ items: mrp10, label: 'MRP Rs. 10 — Items', hRGB: [124, 58, 237],  rate: '8.10', disc: '19.05%' });
-  if (other.length) groups.push({ items: other, label: 'Other MRP — Items',  hRGB: [41, 128, 185],  rate: '—',    disc: '—'      });
+  if (mrp5.length)  groups.push({ items: mrp5,  label: 'MRP Rs. 5 — Items',  hRGB: [39, 174, 96],  rate: '4.05', disc: '19.05%' });
+  if (mrp10.length) groups.push({ items: mrp10, label: 'MRP Rs. 10 — Items', hRGB: [124, 58, 237], rate: '8.10', disc: '19.05%' });
+  if (other.length) groups.push({ items: other, label: 'Other MRP — Items',  hRGB: [41, 128, 185], rate: '—',    disc: '—'      });
 
   const colW = [8, 74, 16, 24, 34, 18];
   let sno = 0;
 
   groups.forEach(g => {
     if (y > 242) { doc.addPage(); y = 14; }
-
     const subQty = g.items.reduce((s, i) => s + i.totalQty, 0);
     const subAmt = g.items.reduce((s, i) => s + i.totalAmt, 0);
 
-    // Section header
     doc.setFillColor(...g.hRGB);
     doc.rect(M, y, W - M * 2, 7.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(255, 255, 255);
     doc.text(g.label, M + 3, y + 5.2);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text(`Rate: Rs. ${g.rate}  |  Discount: ${g.disc}  |  ${g.items.length} items`, W - M - 3, y + 5.2, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.text('Rate: Rs. ' + g.rate + '  |  Discount: ' + g.disc + '  |  ' + g.items.length + ' items',
+      W - M - 3, y + 5.2, { align: 'right' });
     y += 9;
 
     const rows = g.items.map(item => {
       sno++;
-      return [
-        String(sno),
-        item.name,
-        'Rs. ' + item.mrp,
-        item.totalQty + ' PCS',
-        item.totalAmt.toFixed(2),
-        String(item.invoices.size)
-      ];
+      return [String(sno), item.name, 'Rs. ' + item.mrp, item.totalQty + ' PCS', item.totalAmt.toFixed(2), String(item.invoices.size)];
     });
     rows.push(['', 'SUBTOTAL', '', subQty + ' PCS', subAmt.toFixed(2), '']);
 
@@ -854,10 +626,7 @@ function generatePDF() {
         4: { cellWidth: colW[4], halign: 'right' },
         5: { cellWidth: colW[5], halign: 'center' },
       },
-      headStyles: {
-        fillColor: [26, 26, 26], textColor: [160, 150, 130],
-        fontSize: 7, fontStyle: 'bold', cellPadding: 2.5
-      },
+      headStyles: { fillColor: [26, 26, 26], textColor: [160, 150, 130], fontSize: 7, fontStyle: 'bold', cellPadding: 2.5 },
       bodyStyles: { fontSize: 7.5, cellPadding: 2.2, textColor: [20, 20, 20] },
       alternateRowStyles: { fillColor: [248, 245, 240] },
       styles: { font: 'helvetica', overflow: 'linebreak' },
@@ -876,36 +645,25 @@ function generatePDF() {
   if (y > 265) { doc.addPage(); y = 14; }
   doc.setFillColor(20, 20, 20);
   doc.rect(M, y, W - M * 2, 13, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(245, 166, 35);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(245, 166, 35);
   doc.text('GRAND TOTAL', M + 4, y + 8.5);
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255); doc.setFontSize(9);
   doc.text(String(parsedItems.length) + ' SKUs', W - M - 78, y + 8.5, { align: 'right' });
   doc.text(totalQty + ' PCS', W - M - 38, y + 8.5, { align: 'right' });
   doc.text('Rs. ' + totalAmt.toFixed(2), W - M - 3, y + 8.5, { align: 'right' });
 
-  // Page footers
   const pc = doc.internal.getNumberOfPages();
   for (let p = 1; p <= pc; p++) {
     doc.setPage(p);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(160, 150, 130);
-    doc.text(
-      'Swastik Enterprises — H. NO-3230/5, Shop No-03, Dhodi Pada, Maan, Palghar, Boisar, Maharashtra 401501',
-      M, 291
-    );
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(160, 150, 130);
+    doc.text('Swastik Enterprises — H. NO-3230/5, Shop No-03, Dhodi Pada, Maan, Palghar, Boisar, Maharashtra 401501', M, 291);
     doc.text('Page ' + p + ' of ' + pc, W - M, 291, { align: 'right' });
-    doc.setDrawColor(245, 166, 35);
-    doc.setLineWidth(0.3);
+    doc.setDrawColor(245, 166, 35); doc.setLineWidth(0.3);
     doc.line(M, 287.5, W - M, 287.5);
   }
 
   const d = new Date();
-  doc.save(`Swastik_Items_Summary_${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}.pdf`);
+  doc.save('Swastik_Items_Summary_' + d.getDate() + '-' + (d.getMonth()+1) + '-' + d.getFullYear() + '.pdf');
 }
 </script>
 </body>
