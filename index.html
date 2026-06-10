@@ -572,19 +572,32 @@ function parseInvoice(pdfItems) {
   let invNo='UNKNOWN';
   for(const l of lines){ const m=l.text.match(/SWE[\/]?(\d+)/i); if(m){invNo='SWE/'+m[1];break;} }
 
-  const RE=/(\d+)\s+(.+?)\s+(21069099|18069090)\s+(\d+)\s*PCS?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/i;
+  const RE=/(\d+)\s+(.+?)\s+(\d{8})\s+(\d+)\s*PCS?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/i;
   const items=[]; const seen=new Set();
 
   for(let i=0;i<lines.length;i++) {
     let m=RE.exec(lines[i].text);
     if(!m && i+1<lines.length) m=RE.exec(lines[i].text+' '+lines[i+1].text);
     if(m) {
-      const name=norm(m[2]); const qty=parseInt(m[4]);
-      const mrp=parseFloat(m[5]); const amt=parseFloat(m[7]);
-      if(ok(name,qty,mrp,amt)) {
-        const k=name+'|'+mrp+'|'+qty+'|'+amt;
-        if(!seen.has(k)){seen.add(k);items.push({name,mrp,qty,amt});}
-      }
+  const name = norm(m[2]);
+  const hsn  = m[3];
+  const qty  = parseInt(m[4]);
+  const mrp  = parseFloat(m[5]);
+  const amt  = parseFloat(m[7]);
+
+  if(ok(name,qty,mrp,amt)) {
+    const k=name+'|'+hsn+'|'+mrp+'|'+qty+'|'+amt;
+
+    if(!seen.has(k)){
+      seen.add(k);
+
+      items.push({
+        name,
+        hsn,
+        mrp,
+        qty,
+        amt
+      });
     }
   }
   return {invNo,items};
