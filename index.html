@@ -267,12 +267,16 @@ thead th {
 }
 thead th:nth-child(1) { text-align:center; width:40px; }
 thead th:nth-child(2) { text-align:left; }
+/* last column = QTY — highlighted */
+thead th:last-child   { color:var(--brand); font-size:11px; }
 tbody tr { border-bottom:1px solid var(--border); transition:background .1s; }
 tbody tr:last-child   { border-bottom:none; }
 tbody tr:hover        { background:var(--hover); }
 tbody td { padding:11px 14px; text-align:right; font-size:13px; color:var(--text); }
 tbody td:nth-child(1) { text-align:center; font-size:11px; color:var(--text4); width:40px; }
 tbody td:nth-child(2) { text-align:left; font-weight:500; }
+/* QTY last column — bold, bigger, brand color */
+tbody td:last-child   { font-weight:800; font-size:14px; color:var(--brand); text-align:center; }
 .mrp-tag { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:5px; }
 .t5  { background:rgba(39,174,96,.14);  color:#4ade80; }
 .t10 { background:rgba(124,58,237,.14); color:#c084fc; }
@@ -316,7 +320,7 @@ tbody td:nth-child(2) { text-align:left; font-weight:500; }
 
 @media(max-width:640px){
   .topbar{padding:12px 16px;} .out-body{padding:18px 14px;}
-  thead th:nth-child(6),tbody td:nth-child(6){display:none;}
+  thead th:nth-child(5),tbody td:nth-child(5){display:none;}
   .grand-vals{gap:20px;} .doc-header{padding:16px 14px;}
 }
 </style>
@@ -579,26 +583,11 @@ function parseInvoice(pdfItems) {
     let m=RE.exec(lines[i].text);
     if(!m && i+1<lines.length) m=RE.exec(lines[i].text+' '+lines[i+1].text);
     if(m) {
-      const name = norm(m[2]);
-      const hsn  = m[3];
-      const qty  = parseInt(m[4]);
-      const mrp  = parseFloat(m[5]);
-      const amt  = parseFloat(m[7]);
-
+      const name=norm(m[2]); const qty=parseInt(m[4]);
+      const mrp=parseFloat(m[5]); const amt=parseFloat(m[7]);
       if(ok(name,qty,mrp,amt)) {
-        const k=name+'|'+hsn+'|'+mrp+'|'+qty+'|'+amt;
-
-        if(!seen.has(k)){
-          seen.add(k);
-
-          items.push({
-            name,
-            hsn,
-            mrp,
-            qty,
-            amt
-          });
-        }
+        const k=name+'|'+mrp+'|'+qty+'|'+amt;
+        if(!seen.has(k)){seen.add(k);items.push({name,mrp,qty,amt});}
       }
     }
   }
@@ -645,11 +634,12 @@ function showOutput(invCount) {
     const rows=g.items.map(item=>{
       sno++;
       return `<tr>
-        <td>${sno}</td><td>${item.name}</td>
+        <td>${sno}</td>
+        <td>${item.name}</td>
         <td><span class="mrp-tag ${g.tc}">₹${item.mrp}</span></td>
-        <td class="qc">${item.totalQty} PCS</td>
         <td class="ac">₹${item.totalAmt.toFixed(2)} <span class="gst-pill">+GST ₹${(item.totalAmt*0.05).toFixed(2)}</span></td>
         <td class="ic">${item.invoices.size}</td>
+        <td>${item.totalQty} PCS</td>
       </tr>`;
     }).join('');
     html+=`
@@ -659,13 +649,15 @@ function showOutput(invCount) {
         <span class="sec-count">${g.items.length} items</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>#</th><th style="text-align:left">ITEM NAME</th><th>MRP</th><th>TOTAL QTY</th><th>AMOUNT (TAXABLE + GST)</th><th>INV.</th></tr></thead>
+        <thead><tr><th>#</th><th style="text-align:left">ITEM NAME</th><th>MRP</th><th>AMOUNT (TAXABLE + GST)</th><th>INV.</th><th>TOTAL QTY ↓</th></tr></thead>
         <tbody>${rows}
           <tr class="sub-tr">
-            <td></td><td style="text-align:left;font-weight:700;color:var(--text)">Subtotal</td><td></td>
-            <td class="qc">${sQty} PCS</td>
+            <td></td>
+            <td style="text-align:left;font-weight:700;color:var(--text)">Subtotal</td>
+            <td></td>
             <td class="ac">₹${sTax.toFixed(2)} <span class="gst-pill">+GST ₹${sGST.toFixed(2)}</span></td>
             <td></td>
+            <td>${sQty} PCS</td>
           </tr>
         </tbody>
       </table></div>`;
@@ -763,17 +755,44 @@ function generatePDF() {
     doc.setFont('helvetica','normal'); doc.setFontSize(7);
     doc.text('Rate: Rs.'+g.rate+' | Discount: '+g.disc+' | '+g.items.length+' items',W-M-3,y+5.2,{align:'right'});
     y+=9;
-    const rows=g.items.map(item=>{sno++;return [String(sno),item.name,'Rs.'+item.mrp,item.totalQty+' PCS',item.totalAmt.toFixed(2),(item.totalAmt*1.05).toFixed(2),String(item.invoices.size)];});
-    rows.push(['','SUBTOTAL','',sQty+' PCS',sTax.toFixed(2),sTotal.toFixed(2),'']);
+    // Column order: # | Item Name | MRP | Taxable | With GST | Inv. | QTY (last, bold)
+    const rows=g.items.map(item=>{sno++;return [String(sno),item.name,'Rs.'+item.mrp,item.totalAmt.toFixed(2),(item.totalAmt*1.05).toFixed(2),String(item.invoices.size),item.totalQty+' PCS'];});
+    rows.push(['','SUBTOTAL','',sTax.toFixed(2),sTotal.toFixed(2),'',sQty+' PCS']);
     doc.autoTable({
-      startY:y, head:[['#','Item Name','MRP','Qty','Taxable','With GST','Inv.']],
+      startY:y, head:[['#','Item Name','MRP','Taxable (Rs.)','With GST (Rs.)','Inv.','TOTAL QTY']],
       body:rows, margin:{left:M,right:M},
-      columnStyles:{0:{cellWidth:cw[0],halign:'center',fontSize:6.5},1:{cellWidth:cw[1],halign:'left'},2:{cellWidth:cw[2],halign:'center'},3:{cellWidth:cw[3],halign:'right'},4:{cellWidth:cw[4],halign:'right'},5:{cellWidth:cw[5],halign:'right'},6:{cellWidth:cw[6],halign:'center'}},
+      columnStyles:{
+        0:{cellWidth:cw[0],halign:'center',fontSize:6.5},
+        1:{cellWidth:cw[1],halign:'left'},
+        2:{cellWidth:cw[2],halign:'center'},
+        3:{cellWidth:cw[3],halign:'right'},
+        4:{cellWidth:cw[4],halign:'right'},
+        5:{cellWidth:cw[5],halign:'center'},
+        6:{cellWidth:cw[6]+4,halign:'center',fontStyle:'bold',fontSize:9,textColor:[222,93,39]},
+      },
       headStyles:{fillColor:[26,26,26],textColor:[160,150,130],fontSize:7,fontStyle:'bold',cellPadding:2.5},
       bodyStyles:{fontSize:7.5,cellPadding:2.2,textColor:[20,20,20]},
       alternateRowStyles:{fillColor:[248,245,240]},
       styles:{font:'helvetica',overflow:'linebreak'},
-      didParseCell(d){if(d.row.index===rows.length-1&&d.section==='body'){d.cell.styles.fillColor=g.rgb;d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold';}}
+      didParseCell(d){
+        // Subtotal row — color fill
+        if(d.row.index===rows.length-1&&d.section==='body'){
+          d.cell.styles.fillColor=g.rgb;
+          d.cell.styles.textColor=[255,255,255];
+          d.cell.styles.fontStyle='bold';
+        }
+        // QTY column (last) — always bold + brand color in body rows
+        if(d.column.index===6&&d.section==='body'&&d.row.index<rows.length-1){
+          d.cell.styles.fontStyle='bold';
+          d.cell.styles.fontSize=9;
+          d.cell.styles.textColor=[222,93,39];
+        }
+        // QTY header — brand color
+        if(d.column.index===6&&d.section==='head'){
+          d.cell.styles.textColor=[222,93,39];
+          d.cell.styles.fontStyle='bold';
+        }
+      }
     });
     y=doc.lastAutoTable.finalY+8;
   });
