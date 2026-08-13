@@ -10,6 +10,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
@@ -320,7 +321,7 @@ tbody td:last-child   { font-weight:800; font-size:14px; color:var(--brand); tex
 
 @media(max-width:640px){
   .topbar{padding:12px 16px;} .out-body{padding:18px 14px;}
-  thead th:nth-child(5),tbody td:nth-child(5){display:none;}
+  thead th:nth-child(7),tbody td:nth-child(7){display:none;}
   .grand-vals{gap:20px;} .doc-header{padding:16px 14px;}
 }
 </style>
@@ -347,10 +348,10 @@ tbody td:last-child   { font-weight:800; font-size:14px; color:var(--brand); tex
   </div>
 
   <div class="dropzone" id="dropZone">
-    <input type="file" id="fileInput" accept=".pdf" multiple/>
+    <input type="file" id="fileInput" accept=".pdf,.zip" multiple/>
     <span class="dz-icon">📄</span>
-    <h2>Drop Invoice PDFs here</h2>
-    <p>Single ya multiple PDFs upload karein<br/>Multi-page PDF bhi support hai</p>
+    <h2>Drop Invoice PDFs / ZIP files here</h2>
+    <p>Single/multiple PDFs ya ZIP upload karein<br/>ZIP ke andar ke PDFs automatically extract honge</p>
   </div>
 
   <div class="chips" id="chips"></div>
@@ -447,20 +448,69 @@ function toggleTheme() {
 /* ── Upload ── */
 const dropZone  = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag'); });
-dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('drag');
-  addFiles([...e.dataTransfer.files].filter(f => f.type === 'application/pdf'));
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault(); dropZone.classList.add('drag');
 });
-fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', async e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  await addFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', async () => {
+  await addFiles([...fileInput.files]); fileInput.value = '';
+});
 
-function addFiles(nf) {
-  nf.forEach(f => { if (!files.find(x => x.name===f.name && x.file.size===f.size)) files.push({file:f,name:f.name,pages:null}); });
+/* PDFs can be selected directly, or PDFs can be extracted from ZIP archives. */
+async function addFiles(nf) {
+  for(const f of nf) {
+    const lower=(f.name||'').toLowerCase();
+    try {
+      if(f.type==='application/pdf' || lower.endsWith('.pdf')) {
+        addPdfFile(f, f.name);
+      } else if(f.type==='application/zip' || lower.endsWith('.zip')) {
+        await extractZipPdfs(f);
+      } else {
+        log('Ignored unsupported file: '+f.name,'warn');
+      }
+    } catch(err) {
+      log('Could not read '+f.name+': '+(err.message||err),'err');
+    }
+  }
   renderChips();
   document.getElementById('parseBtn').disabled = !files.length;
   document.getElementById('clearBtn').style.display = files.length ? '' : 'none';
 }
+
+function addPdfFile(file, displayName) {
+  if(!files.find(x=>x.name===displayName && x.file.size===file.size)) {
+    files.push({file:file,name:displayName,pages:null,source:'PDF'});
+  }
+}
+
+async function extractZipPdfs(zipFile) {
+  log('ZIP: '+zipFile.name+' — opening archive…');
+  const zip=await JSZip.loadAsync(zipFile);
+  let count=0;
+
+  for(const entry of Object.values(zip.files)) {
+    if(entry.dir) continue;
+    const path=entry.name.replace(/\\/g,'/');
+    if(!/\.pdf$/i.test(path)) continue;
+
+    const blob=await entry.async('blob');
+    const pdfFile=new File([blob], path.split('/').pop(), {type:'application/pdf'});
+    const displayName=zipFile.name+' / '+path;
+
+    if(!files.find(x=>x.name===displayName && x.file.size===pdfFile.size)) {
+      addPdfFile(pdfFile, displayName);
+      count++;
+    }
+  }
+
+  if(count) log('   '+count+' PDF(s) found in ZIP');
+  else log('   No PDF files found in ZIP','warn');
+}
+
 function removeFile(i) {
   files.splice(i,1); renderChips();
   document.getElementById('parseBtn').disabled = !files.length;
@@ -513,94 +563,191 @@ async function parseAll() {
   document.getElementById('logBox').innerHTML='';
   document.getElementById('logWrap').style.display='none';
   document.getElementById('parseBtn').disabled=true;
-  const summary={}; let invCount=0;
 
-  for(let fi=0;fi<files.length;fi++) {
+  const summary={}; let invCount=0;
+  const totalFiles=files.length;
+
+  for(let fi=0;fi<totalFiles;fi++) {
     const uf=files[fi];
-    setProg(Math.round(fi/files.length*88),'Reading: '+uf.name);
+    setProg(Math.round(fi/totalFiles*88),'Reading: '+uf.name);
     setCS(fi,'busy','⏳ reading…');
     log('── '+uf.name);
+
     try {
       const buf=await uf.file.arrayBuffer();
       const pdf=await pdfjsLib.getDocument({data:buf}).promise;
       const np=pdf.numPages;
       files[fi].pages=np;
       const cp=document.getElementById('cp-'+fi);
-      if(cp) cp.textContent=np+' pages';
+      if(cp) cp.textContent=np+' page'+(np===1?'':'s');
       log('   '+np+' page(s)');
 
+      let fileItemCount=0;
       for(let p=1;p<=np;p++) {
+        setProg(Math.min(88,Math.round(((fi+p/np)/totalFiles)*88)),
+                'Reading: '+uf.name+' — page '+p+'/'+np);
+
         const page=await pdf.getPage(p);
         const content=await page.getTextContent();
         const result=parseInvoice(content.items);
-        if(!result||!result.items.length){ log('   Page '+p+': no items','warn'); continue; }
+
+        if(!result || !result.items.length){
+          log('   Page '+p+': no invoice items detected','warn');
+          continue;
+        }
+
         invCount++;
+        fileItemCount+=result.items.length;
         log('   Page '+p+': '+result.invNo+' → '+result.items.length+' items');
+
         result.items.forEach(item => {
-          const key=item.name+'||'+item.mrp;
-          if(!summary[key]) summary[key]={name:item.name,mrp:item.mrp,totalQty:0,totalAmt:0,invoices:new Set()};
-          summary[key].totalQty+=item.qty;
-          summary[key].totalAmt+=item.amt;
+          const key=canonicalName(item.name)+'||'+item.mrp;
+          if(!summary[key]) {
+            summary[key]={
+              name:canonicalName(item.name),
+              mrp:item.mrp,
+              totalQty:0,
+              taxable:0,
+              gst:0,
+              totalAmt:0,
+              invoices:new Set()
+            };
+          }
+          summary[key].totalQty += item.qty;
+          summary[key].taxable += item.taxable;
+          summary[key].gst += item.gst;
+          summary[key].totalAmt += item.amount;
           summary[key].invoices.add(result.invNo);
         });
       }
-      setCS(fi,'ok','✓ done');
-    } catch(e) {
-      log('   ERROR: '+e.message,'err'); setCS(fi,'err','✕ error'); console.error(e);
+
+      setCS(fi,fileItemCount?'ok':'err',fileItemCount?'✓ '+fileItemCount+' items':'⚠ no items');
+    } catch(err) {
+      setCS(fi,'err','✕ failed');
+      log('   ERROR: '+(err.message||err),'err');
     }
   }
 
-  setProg(100,'Complete!');
   parsedItems=Object.values(summary).sort((a,b)=>a.mrp-b.mrp||a.name.localeCompare(b.name));
-  log('✅ '+invCount+' invoices · '+parsedItems.length+' SKUs');
-  document.getElementById('parseBtn').disabled=false;
-  if(!parsedItems.length){ log('⚠ No items found. Check console.','warn'); return; }
+
+  setProg(100,'Done — '+invCount+' invoice page(s), '+parsedItems.length+' unique item(s)');
+  if(!parsedItems.length) {
+    log('No invoice items were detected. Check the PDF text layer / template.','err');
+    document.getElementById('parseBtn').disabled=false;
+    return;
+  }
   showOutput(invCount);
+  document.getElementById('parseBtn').disabled=false;
 }
 
 /* ── PARSER ── */
-// Confirmed format: "1 Item Name 21069099 12 PCS 5 4.05 48.57"
-// "(19.05% OFF)" appears on next line — ignored
+/*
+  Latest myBillBook row:
+  S.NO. ITEMS HSN QTY. MRP RATE TAX AMOUNT
+  Example:
+  1 Krispy Korn Masala 21069099 12 PCS 5 4.05 2.43 (5%) 51
+
+  TAX is the GST amount and AMOUNT is the printed final line total.
+  So:
+      taxable = AMOUNT - TAX
+      gst     = TAX
+      total   = AMOUNT
+*/
 function parseInvoice(pdfItems) {
   const lineMap={};
+
   pdfItems.forEach(item => {
-    if(!item.str.trim()) return;
+    if(!item.str || !item.str.trim()) return;
     const y=Math.round(item.transform[5]/2)*2;
     if(!lineMap[y]) lineMap[y]=[];
-    lineMap[y].push({x:item.transform[4],text:item.str});
+    lineMap[y].push({x:item.transform[4],text:item.str.trim()});
   });
+
   const lines=Object.keys(lineMap)
-    .map(y=>({y:parseFloat(y),text:lineMap[y].sort((a,b)=>a.x-b.x).map(t=>t.text).join(' ').replace(/\s+/g,' ').trim()}))
-    .filter(l=>l.text.length>0).sort((a,b)=>b.y-a.y);
+    .map(y=>{
+      const parts=lineMap[y].sort((a,b)=>a.x-b.x);
+      return {
+        y:Number(y),
+        text:parts.map(t=>t.text).join(' ').replace(/\s+/g,' ').trim()
+      };
+    })
+    .filter(l=>l.text)
+    .sort((a,b)=>b.y-a.y);
 
   let invNo='UNKNOWN';
-  for(const l of lines){ const m=l.text.match(/SWE[\/]?(\d+)/i); if(m){invNo='SWE/'+m[1];break;} }
-
-  const RE=/(\d+)\s+(.+?)\s+(\d{8})\s+(\d+)\s*PCS?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/i;
-  const items=[]; const seen=new Set();
-
-  for(let i=0;i<lines.length;i++) {
-    let m=RE.exec(lines[i].text);
-    if(!m && i+1<lines.length) m=RE.exec(lines[i].text+' '+lines[i+1].text);
-    if(m) {
-      const name=norm(m[2]); const qty=parseInt(m[4]);
-      const mrp=parseFloat(m[5]); const amt=parseFloat(m[7]);
-      if(ok(name,qty,mrp,amt)) {
-        const k=name+'|'+mrp+'|'+qty+'|'+amt;
-        if(!seen.has(k)){seen.add(k);items.push({name,mrp,qty,amt});}
-      }
-    }
+  for(const l of lines){
+    const m=l.text.match(/\bSWE[\/-]?(\d+)\b/i);
+    if(m){invNo='SWE/'+m[1];break;}
   }
+
+  const items=[];
+  const seen=new Set();
+
+  for(let i=0;i<lines.length;i++){
+    if(!/^\d+\s+/.test(lines[i].text)) continue;
+
+    let window=lines[i].text;
+    for(let j=i+1;j<=Math.min(i+3,lines.length-1);j++){
+      if(j>i+1 && /^\d+\s+/.test(lines[j].text)) break;
+      window+=' '+lines[j].text;
+    }
+
+    const item=parseLatestInvoiceRow(window);
+    if(!item) continue;
+
+    const key=item.name+'|'+item.mrp+'|'+item.qty+'|'+item.amount;
+    if(seen.has(key)) continue;
+    seen.add(key);
+    items.push(item);
+  }
+
   return {invNo,items};
 }
-function norm(r){ return r.replace(/^\d+\s*/,'').replace(/\s+/g,' ').trim().split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' '); }
-function ok(n,q,m,a){ if(!n||n.length<2||isNaN(q)||q<=0||isNaN(m)||m<=0||isNaN(a)||a<=0) return false; return !/^(s\.no|items|hsn|qty|mrp|rate|amount|total|cgst|sgst|bill|ship|tax|gstin|mobile|pan|bank|ifsc|account|terms|subject|authorised|swastik|palghar|email|upi)/i.test(n); }
+
+function parseLatestInvoiceRow(text) {
+  let s=text.replace(/\s+/g,' ').trim();
+  s=s.replace(/\(\s*\d+(?:\.\d+)?\s*%\s*\)/g,' ');
+
+  // S.NO | ITEM NAME | 8-digit HSN | QTY PCS | MRP | RATE | TAX | AMOUNT
+  const re=/^(\d+)\s+(.+?)\s+(\d{8})\s+(\d+(?:\.\d+)?)\s*PCS?\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/i;
+  const m=s.match(re);
+  if(!m) return null;
+
+  const name=canonicalName(m[2]);
+  const qty=Number(m[4]);
+  const mrp=Number(m[5]);
+  const rate=Number(m[6]);
+  const gst=Number(m[7]);
+  const amount=Number(m[8]);
+
+  if(!ok(name,qty,mrp,amount)) return null;
+  if(!Number.isFinite(gst)||gst<0||!Number.isFinite(rate)||rate<=0) return null;
+
+  return {
+    name,mrp,qty,rate,gst,
+    taxable:Math.max(0,amount-gst),
+    amount
+  };
+}
+
+function canonicalName(r){
+  return r.replace(/^\d+\s*/,'').replace(/\s+/g,' ').trim()
+    .split(' ')
+    .map(w=>w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():'')
+    .join(' ');
+}
+
+function ok(n,q,m,a){
+  if(!n||n.length<2||!Number.isFinite(q)||q<=0||!Number.isFinite(m)||m<=0||!Number.isFinite(a)||a<=0) return false;
+  return !/^(s\.no|items|hsn|qty|mrp|rate|tax|amount|total|cgst|sgst|bill|ship|gstin|mobile|pan|bank|ifsc|account|terms|subject|authorised|swastik|palghar|email|upi)/i.test(n);
+}
 
 /* ── SHOW OUTPUT ── */
 function showOutput(invCount) {
   const tQty=parsedItems.reduce((s,i)=>s+i.totalQty,0);
-  const tTax=parsedItems.reduce((s,i)=>s+i.totalAmt,0);
-  const tGST=tTax*0.05; const tTotal=tTax+tGST;
+  const tTax=parsedItems.reduce((s,i)=>s+i.taxable,0);
+  const tGST=parsedItems.reduce((s,i)=>s+i.gst,0);
+  const tTotal=parsedItems.reduce((s,i)=>s+i.totalAmt,0);
   const mrp5=parsedItems.filter(i=>i.mrp===5);
   const mrp10=parsedItems.filter(i=>i.mrp===10);
   const other=parsedItems.filter(i=>i.mrp!==5&&i.mrp!==10);
@@ -618,7 +765,7 @@ function showOutput(invCount) {
     <div class="stat-card"><div class="sc-lbl">Unique SKUs</div><div class="sc-val orange">${parsedItems.length}</div><div class="sc-sub">${mrp5.length} @ MRP ₹5 &nbsp;·&nbsp; ${mrp10.length} @ MRP ₹10</div></div>
     <div class="stat-card"><div class="sc-lbl">Total Qty Sold</div><div class="sc-val green">${tQty.toLocaleString('en-IN')}</div><div class="sc-sub">PCS across ${invCount} invoices</div></div>
     <div class="stat-card"><div class="sc-lbl">Taxable Amount (Before GST)</div><div class="sc-val orange">₹${tTax.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</div><div class="sc-sub">CGST 2.5% + SGST 2.5% excluded</div></div>
-    <div class="stat-card"><div class="sc-lbl">Total Amount (With GST 5%)</div><div class="sc-val orange">₹${tTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</div><div class="sc-sub">CGST ₹${(tTax*0.025).toFixed(2)} + SGST ₹${(tTax*0.025).toFixed(2)}</div></div>`;
+    <div class="stat-card"><div class="sc-lbl">Total Amount (Invoice)</div><div class="sc-val orange">₹${tTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</div><div class="sc-sub">Printed invoice total including GST</div></div>`;
 
   /* Tables */
   const groups=[];
@@ -628,8 +775,8 @@ function showOutput(invCount) {
 
   let html='',sno=0;
   groups.forEach(g=>{
-    const sTax=g.items.reduce((s,i)=>s+i.totalAmt,0);
-    const sGST=sTax*0.05; const sTotal=sTax+sGST;
+    const sTax=g.items.reduce((s,i)=>s+i.taxable,0);
+    const sGST=g.items.reduce((s,i)=>s+i.gst,0); const sTotal=g.items.reduce((s,i)=>s+i.totalAmt,0);
     const sQty=g.items.reduce((s,i)=>s+i.totalQty,0);
     const rows=g.items.map(item=>{
       sno++;
@@ -637,7 +784,9 @@ function showOutput(invCount) {
         <td>${sno}</td>
         <td>${item.name}</td>
         <td><span class="mrp-tag ${g.tc}">₹${item.mrp}</span></td>
-        <td class="ac">₹${item.totalAmt.toFixed(2)} <span class="gst-pill">+GST ₹${(item.totalAmt*0.05).toFixed(2)}</span></td>
+        <td class="ac">₹${item.taxable.toFixed(2)}</td>
+        <td>₹${item.gst.toFixed(2)}</td>
+        <td>₹${item.totalAmt.toFixed(2)}</td>
         <td class="ic">${item.invoices.size}</td>
         <td>${item.totalQty} PCS</td>
       </tr>`;
@@ -649,13 +798,15 @@ function showOutput(invCount) {
         <span class="sec-count">${g.items.length} items</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>#</th><th style="text-align:left">ITEM NAME</th><th>MRP</th><th>AMOUNT (TAXABLE + GST)</th><th>INV.</th><th>TOTAL QTY ↓</th></tr></thead>
+        <thead><tr><th>#</th><th style="text-align:left">ITEM NAME</th><th>MRP</th><th>TAXABLE</th><th>GST</th><th>TOTAL</th><th>INV.</th><th>TOTAL QTY ↓</th></tr></thead>
         <tbody>${rows}
           <tr class="sub-tr">
             <td></td>
             <td style="text-align:left;font-weight:700;color:var(--text)">Subtotal</td>
             <td></td>
-            <td class="ac">₹${sTax.toFixed(2)} <span class="gst-pill">+GST ₹${sGST.toFixed(2)}</span></td>
+            <td class="ac">₹${sTax.toFixed(2)}</td>
+            <td>₹${sGST.toFixed(2)}</td>
+            <td>₹${sTotal.toFixed(2)}</td>
             <td></td>
             <td>${sQty} PCS</td>
           </tr>
@@ -687,8 +838,9 @@ function generatePDF() {
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth(), M=14; let y=0;
   const tQty=parsedItems.reduce((s,i)=>s+i.totalQty,0);
-  const tTax=parsedItems.reduce((s,i)=>s+i.totalAmt,0);
-  const tGST=tTax*0.05, tTotal=tTax+tGST;
+  const tTax=parsedItems.reduce((s,i)=>s+i.taxable,0);
+  const tGST=parsedItems.reduce((s,i)=>s+i.gst,0);
+  const tTotal=parsedItems.reduce((s,i)=>s+i.totalAmt,0);
   const mrp5=parsedItems.filter(i=>i.mrp===5), mrp10=parsedItems.filter(i=>i.mrp===10);
   const other=parsedItems.filter(i=>i.mrp!==5&&i.mrp!==10);
   const now=new Date();
@@ -743,11 +895,12 @@ function generatePDF() {
   if(mrp10.length) groups.push({items:mrp10,lbl:'MRP Rs.10 — Items',rgb:[124,58,237], rate:'8.10',disc:'19.05%'});
   if(other.length) groups.push({items:other,lbl:'Other MRP — Items', rgb:[41,128,185], rate:'—',   disc:'—'});
 
-  const cw=[7,56,14,19,26,24,14]; let sno=0;
+  const cw=[7,50,13,20,18,20,14,20]; let sno=0;
   groups.forEach(g=>{
     if(y>238){doc.addPage();y=14;}
-    const sTax=g.items.reduce((s,i)=>s+i.totalAmt,0);
-    const sGST=sTax*0.05, sTotal=sTax+sGST;
+    const sTax=g.items.reduce((s,i)=>s+i.taxable,0);
+    const sGST=g.items.reduce((s,i)=>s+i.gst,0);
+    const sTotal=g.items.reduce((s,i)=>s+i.totalAmt,0);
     const sQty=g.items.reduce((s,i)=>s+i.totalQty,0);
     doc.setFillColor(...g.rgb); doc.rect(M,y,W-M*2,7.5,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
@@ -756,8 +909,12 @@ function generatePDF() {
     doc.text('Rate: Rs.'+g.rate+' | Discount: '+g.disc+' | '+g.items.length+' items',W-M-3,y+5.2,{align:'right'});
     y+=9;
     // Column order: # | Item Name | MRP | Taxable | With GST | Inv. | QTY (last, bold)
-    const rows=g.items.map(item=>{sno++;return [String(sno),item.name,'Rs.'+item.mrp,item.totalAmt.toFixed(2),(item.totalAmt*1.05).toFixed(2),String(item.invoices.size),item.totalQty+' PCS'];});
-    rows.push(['','SUBTOTAL','',sTax.toFixed(2),sTotal.toFixed(2),'',sQty+' PCS']);
+    const rows=g.items.map(item=>{sno++;return [
+      String(sno),item.name,'Rs.'+item.mrp,
+      item.taxable.toFixed(2),item.gst.toFixed(2),item.totalAmt.toFixed(2),
+      String(item.invoices.size),item.totalQty+' PCS'
+    ];});
+    rows.push(['','SUBTOTAL','',sTax.toFixed(2),sGST.toFixed(2),sTotal.toFixed(2),'',sQty+' PCS']);
     doc.autoTable({
       startY:y, head:[['#','Item Name','MRP','Taxable (Rs.)','With GST (Rs.)','Inv.','TOTAL QTY']],
       body:rows, margin:{left:M,right:M},
@@ -782,13 +939,13 @@ function generatePDF() {
           d.cell.styles.fontStyle='bold';
         }
         // QTY column (last) — always bold + brand color in body rows
-        if(d.column.index===6&&d.section==='body'&&d.row.index<rows.length-1){
+        if(d.column.index===7&&d.section==='body'&&d.row.index<rows.length-1){
           d.cell.styles.fontStyle='bold';
           d.cell.styles.fontSize=9;
           d.cell.styles.textColor=[222,93,39];
         }
         // QTY header — brand color
-        if(d.column.index===6&&d.section==='head'){
+        if(d.column.index===7&&d.section==='head'){
           d.cell.styles.textColor=[222,93,39];
           d.cell.styles.fontStyle='bold';
         }
