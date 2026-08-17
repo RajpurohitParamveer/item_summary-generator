@@ -665,21 +665,26 @@ async function parseAll() {
 */
 function parseInvoice(pdfItems) {
   /*
-   * ROBUST myBillBook parser
-   * ------------------------
-   * Do NOT parse the table as one long regex. PDF.js can return different
-   * text blocks with different Y coordinates (especially TAX + "(40%)").
+   * ROBUST myBillBook parser — v2
+   * ------------------------------
+   * IMPORTANT FIX:
+   * The myBillBook PDF does NOT keep the table columns at fixed X positions.
+   * Different invoices shift the HSN/QTY/MRP/RATE/TAX/AMOUNT columns horizontally.
    *
-   * Instead:
-   *  1) find the table header positions,
-   *  2) find every 6-10 digit HSN number,
-   *  3) collect text around that HSN on the same visual row,
-   *  4) assign values to columns using the table's X boundaries.
+   * Old parser used fixed bounds such as:
+   *   MRP = 346..390, RATE = 390..448, etc.
+   * That caused invoices with shifted columns to lose some/all rows.
    *
-   * This handles invoices such as:
-   *   1 RIO MP 22029920 120 PCS 50 29.17 1,400 (40%) 4,900
-   * and:
-   *   1 Farali Potato Chivda 21069099 144 PCS 5 4.05 29.14 (5%) 612
+   * New parser:
+   *   1) Finds every 6-10 digit HSN token as the row anchor.
+   *   2) Looks only at text on the same visual baseline.
+   *   3) Finds the serial number to the left of HSN.
+   *   4) Treats everything between serial and HSN as the item name.
+   *   5) Reads the first five numeric values after HSN as:
+   *        QTY → MRP → RATE → TAX → AMOUNT
+   *   6) Uses the existing regex fallback if the row-anchor method fails.
+   *
+   * This is resilient to horizontal column shifts and different item-name widths.
    */
 
   const clean = v => String(v || '')
@@ -710,123 +715,66 @@ function parseInvoice(pdfItems) {
   const seen=new Set();
 
   const num = s => Number(String(s || '').replace(/[,₹]/g,'').trim());
+  const isNumberToken = s => /^\d[\d,]*(?:\.\d+)?$/.test(String(s || '').trim());
 
   /*
-   * Find the header positions. The latest template uses these headers:
-   * S.NO. ITEMS HSN QTY. MRP RATE TAX AMOUNT
+   * ROW-ANCHOR PARSER
+   *
+   * HSN is the most reliable anchor because it is always numeric and
+   * sits between the item-name and quantity columns.
    */
-  const headerNames = {
-    sno: 'S.NO.',
-    items: 'ITEMS',
-    hsn: 'HSN',
-    qty: 'QTY.',
-    mrp: 'MRP',
-    rate: 'RATE',
-    tax: 'TAX',
-    amount: 'AMOUNT'
-  };
-
-  const headerPos={};
-  for(const p of parts){
-    const t=p.text.toUpperCase().replace(/\s+/g,'').replace(/:$/,'');
-    for(const [key,label] of Object.entries(headerNames)){
-      const wanted=label.replace(/\s+/g,'').replace(/:$/,'');
-      if(t===wanted && headerPos[key]===undefined){
-        headerPos[key]=p.x + 0.5 * (Number(p.width || 0));
-      }
-    }
-  }
-
-  /*
-   * Most PDF.js text items do not expose width consistently, so use the
-   * known myBillBook column geometry when header centres are unavailable.
-   * Values are expressed as fractions of the page width and scaled to the
-   * actual PDF page width.
-   */
-  const pageWidth = Math.max(1, parts.reduce((mx,p)=>Math.max(mx,p.x),0) || 595);
-  const scale = pageWidth > 700 ? pageWidth/595 : 1;
-
-  // Approximate vertical cell boundaries of the current myBillBook template.
-  // These are intentionally broad; HSN itself is used as the row anchor.
-  const fallbackBounds = {
-    sno:[0, 76],
-    items:[76, 223],
-    hsn:[223, 294],
-    qty:[294, 346],
-    mrp:[346, 390],
-    rate:[390, 448],
-    tax:[448, 502],
-    amount:[502, 594]
-  };
-
-  const bounds={};
-  for(const [k,[a,b]] of Object.entries(fallbackBounds)){
-    bounds[k]=[a*scale,b*scale];
-  }
-
-  /*
-   * Locate HSN tokens. Restrict to plausible table/body HSNs and ignore
-   * header/summary duplicates by parsing the first occurrence on each Y band.
-   */
-  const hsnParts=parts.filter(p => /^\d{6,10}$/.test(p.text));
+  const hsnParts = parts.filter(p => /^\d{6,10}$/.test(p.text));
 
   for(const hp of hsnParts){
-    const hsn=hp.text;
     const y=hp.y;
 
-    // Ignore HSN/SAC summary rows near the bottom: item rows occur before TOTAL.
-    // We also need a serial number + quantity around the HSN.
-    const nearby=parts.filter(p => Math.abs(p.y-y) <= 11);
+    /*
+     * Only use the same text baseline here. The "(5%)" / "(40%)" tax-rate
+     * token is normally placed on a second baseline and is therefore ignored.
+     * A small tolerance handles PDF.js baseline rounding.
+     */
+    const nearby=parts.filter(p => Math.abs(p.y-y) <= 3);
 
-    // Split the visual row by the current table column boundaries.
-    const col={sno:[],items:[],hsn:[],qty:[],mrp:[],rate:[],tax:[],amount:[]};
+    // Serial number must be somewhere to the left of the HSN.
+    const left=nearby
+      .filter(p => p.x < hp.x-5)
+      .sort((a,b)=>a.x-b.x);
 
-    for(const p of nearby){
-      const x=p.x;
-      if(x >= bounds.sno[0] && x < bounds.sno[1]) col.sno.push(p);
-      else if(x >= bounds.items[0] && x < bounds.items[1]) col.items.push(p);
-      else if(x >= bounds.hsn[0] && x < bounds.hsn[1]) col.hsn.push(p);
-      else if(x >= bounds.qty[0] && x < bounds.qty[1]) col.qty.push(p);
-      else if(x >= bounds.mrp[0] && x < bounds.mrp[1]) col.mrp.push(p);
-      else if(x >= bounds.rate[0] && x < bounds.rate[1]) col.rate.push(p);
-      else if(x >= bounds.tax[0] && x < bounds.tax[1]) col.tax.push(p);
-      else if(x >= bounds.amount[0]) col.amount.push(p);
-    }
+    const snoParts=left.filter(p => /^\d{1,3}$/.test(p.text));
+    if(!snoParts.length) continue;
 
-    // If this HSN landed outside the expected box because the PDF page is
-    // slightly different, use its X position to derive the HSN column.
-    if(!col.hsn.some(p=>p.text===hsn)){
-      const dx=Math.abs(hp.x - 239);
-      if(dx>30) continue;
-    }
+    /*
+     * The first numeric token on the left is the S.NO.
+     * Everything after it and before HSN is the item name.
+     */
+    const sno=snoParts[0];
+    const itemParts=left
+      .filter(p => p.x > sno.x+5)
+      .sort((a,b)=>a.x-b.x || b.y-a.y);
 
-    const sortText = arr => arr.slice().sort((a,b)=>a.x-b.x || b.y-a.y).map(p=>p.text).join(' ');
-    const snoText=sortText(col.sno);
-    const itemText=sortText(col.items);
-    const qtyText=sortText(col.qty);
-    const mrpText=sortText(col.mrp);
-    const rateText=sortText(col.rate);
-    const taxText=sortText(col.tax);
-    const amountText=sortText(col.amount);
+    const name=canonicalName(itemParts.map(p=>p.text).join(' '));
+    if(!name) continue;
 
-    // Serial number must be present in the left cell.
-    const snoMatch=snoText.match(/^\s*(\d{1,3})\b/);
-    if(!snoMatch) continue;
+    /*
+     * Read numeric cells by their visual order after HSN.
+     * For the current myBillBook layout these are:
+     * QTY, MRP, RATE, TAX, AMOUNT.
+     *
+     * "PCS" and the "(5%)" / "(40%)" text are non-numeric and ignored.
+     */
+    const right=nearby
+      .filter(p => p.x > hp.x+5)
+      .sort((a,b)=>a.x-b.x || b.y-a.y);
 
-    const name=canonicalName(itemText);
-    const qtyMatch=qtyText.match(/(\d+(?:\.\d+)?)/);
-    const mrpMatch=mrpText.match(/(\d+(?:\.\d+)?)/);
-    const rateMatch=rateText.match(/(\d+(?:\.\d+)?)/);
-    const taxMatch=taxText.match(/([\d,]+(?:\.\d+)?)/);
-    const amountMatch=amountText.match(/([\d,]+(?:\.\d+)?)/);
+    const numericCells=right.filter(p => isNumberToken(p.text));
 
-    if(!qtyMatch || !mrpMatch || !rateMatch || !taxMatch || !amountMatch) continue;
+    if(numericCells.length < 5) continue;
 
-    const qty=num(qtyMatch[1]);
-    const mrp=num(mrpMatch[1]);
-    const rate=num(rateMatch[1]);
-    const gst=num(taxMatch[1]);
-    const amount=num(amountMatch[1]);
+    const qty=num(numericCells[0].text);
+    const mrp=num(numericCells[1].text);
+    const rate=num(numericCells[2].text);
+    const gst=num(numericCells[3].text);
+    const amount=num(numericCells[4].text);
 
     if(!ok(name,qty,mrp,amount)) continue;
     if(!Number.isFinite(rate) || rate<=0) continue;
@@ -834,7 +782,7 @@ function parseInvoice(pdfItems) {
 
     const item={
       name,
-      hsn,
+      hsn:hp.text,
       qty,
       mrp,
       rate,
@@ -843,7 +791,12 @@ function parseInvoice(pdfItems) {
       amount
     };
 
-    const key=name+'|'+hsn+'|'+mrp+'|'+qty+'|'+amount;
+    /*
+     * Include serial number in the de-duplication key. This prevents
+     * accidental suppression of two identical-looking rows in one invoice
+     * while still allowing the same SKU to be aggregated across invoices.
+     */
+    const key=invNo+'|'+sno.text+'|'+name+'|'+hp.text+'|'+mrp+'|'+qty+'|'+amount;
     if(!seen.has(key)){
       seen.add(key);
       items.push(item);
@@ -851,68 +804,68 @@ function parseInvoice(pdfItems) {
   }
 
   /*
-   * Text-only fallback. This is useful when PDF.js has no usable X positions
-   * or a future template changes the exact table coordinates.
+   * Text-only fallback
+   * ------------------
+   * Keep this for PDFs where PDF.js does not provide useful X coordinates.
    */
   if(!items.length){
     const compact=flat.replace(/\s+/g,' ');
 
-    // Normal one-line row
     const rowRE=/(?:^|\s)(\d{1,3})\s+(.+?)\s+(\d{6,10})\s+(\d+(?:\.\d+)?)\s*PCS?\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s*(?:\(\s*\d+(?:\.\d+)?\s*%\s*\))?\s+([\d,]+(?:\.\d+)?)(?=\s|$)/gi;
+
     let m;
     while((m=rowRE.exec(compact))!==null){
       const name=canonicalName(m[2]);
       const qty=num(m[4]), mrp=num(m[5]), rate=num(m[6]);
       const gst=num(m[7]), amount=num(m[8]);
       const hsn=m[3];
+
       if(!ok(name,qty,mrp,amount)||!Number.isFinite(rate)||rate<=0) continue;
-      const item={name,hsn,qty,mrp,rate,gst,taxable:Math.max(0,amount-gst),amount};
-      const key=name+'|'+hsn+'|'+mrp+'|'+qty+'|'+amount;
-      if(!seen.has(key)){seen.add(key);items.push(item);}
+
+      const item={
+        name,
+        hsn,
+        qty,
+        mrp,
+        rate,
+        gst,
+        taxable:Math.max(0,amount-gst),
+        amount
+      };
+
+      const key=invNo+'|'+m[1]+'|'+name+'|'+hsn+'|'+mrp+'|'+qty+'|'+amount;
+      if(!seen.has(key)){
+        seen.add(key);
+        items.push(item);
+      }
     }
   }
 
   /*
-   * INVOICE TOTAL — IMPORTANT
-   * -------------------------
-   * The report total must come from the LAST AMOUNT CELL OF THE INVOICE
-   * SUMMARY/TOTAL ROW, NOT from the last ITEM ROW.
-   *
-   * Example myBillBook extraction:
-   *   TOTAL 120 ₹ 1,400 ₹ 4,900
-   *   RECEIVED AMOUNT ₹ 0
-   *
-   * Here 4,900 is the invoice total. The 1,400 value is GST and the
-   * individual item amounts may be much smaller.
-   *
-   * We therefore locate TOTAL ... RECEIVED AMOUNT and take the final
-   * numeric value before RECEIVED AMOUNT. This is much more reliable than
-   * summing/using the last item row.
+   * INVOICE TOTAL
+   * -------------
+   * Prefer the printed TOTAL row. The final numeric value before
+   * RECEIVED AMOUNT is the invoice total.
    */
-  let invoiceTotal = null;
+  let invoiceTotal=null;
 
-  // Primary: parse the printed TOTAL row from the PDF text layer.
-  const totalBlock = flat.match(/\bTOTAL\b([\s\S]*?)\bRECEIVED\s+AMOUNT\b/i);
+  const totalBlock=flat.match(/\bTOTAL\b([\s\S]*?)\bRECEIVED\s+AMOUNT\b/i);
   if(totalBlock){
-    const nums = totalBlock[1].match(/\d[\d,]*(?:\.\d+)?/g) || [];
+    const nums=totalBlock[1].match(/\d[\d,]*(?:\.\d+)?/g)||[];
     if(nums.length){
-      // The final number in the TOTAL row is the AMOUNT column.
-      const v = num(nums[nums.length-1]);
-      if(Number.isFinite(v) && v > 0) invoiceTotal = v;
+      const v=num(nums[nums.length-1]);
+      if(Number.isFinite(v)&&v>0) invoiceTotal=v;
     }
   }
 
-  // Fallback: use the final AMOUNT-column value from the detected table
-  // only when the printed TOTAL row could not be recovered.
-  if(invoiceTotal === null && items.length){
-    const lastItem = items[items.length - 1];
-    const v = Number(lastItem.amount);
-    if(Number.isFinite(v) && v > 0) invoiceTotal = v;
+  if(invoiceTotal===null && items.length){
+    const lastItem=items[items.length-1];
+    const v=Number(lastItem.amount);
+    if(Number.isFinite(v)&&v>0) invoiceTotal=v;
   }
 
   return {invNo,items,invoiceTotal};
 }
-
 function canonicalName(r){
   return r.replace(/^\d+\s*/,'').replace(/\s+/g,' ').trim()
     .split(' ')
